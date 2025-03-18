@@ -1,5 +1,5 @@
-import { I as ElMessage, J as mergeModels, r as ref, K as useModel, k as createBlock, o as openBlock, g as withCtx, F as createBaseVNode, f as createVNode$1, j as resolveComponent, u as unref, L as ElUpload, M as createTextVNode, e as createElementBlock, N as createCommentVNode, O as Fragment, P as renderList, H as dayjs, G as toDisplayString, Q as onMounted, R as useResizeObserver, w as watch, S as withDirectives, T as resolveDirective } from "./index-Di9skDmY.js";
-import { d as defineStore } from "./main-Djk07Za3.js";
+import { I as ElMessage, J as mergeModels, K as useModel, r as ref, k as createBlock, o as openBlock, g as withCtx, F as createBaseVNode, f as createVNode$1, j as resolveComponent, u as unref, L as ElUpload, M as createTextVNode, e as createElementBlock, N as createCommentVNode, O as Fragment, P as renderList, G as toDisplayString, H as dayjs, Q as onMounted, R as useResizeObserver, w as watch, S as withDirectives, T as resolveDirective } from "./index-Di9skDmY.js";
+import { d as defineStore } from "./main-D51RFffO.js";
 import { _ as _export_sfc } from "./_plugin-vue_export-helper-1tPrXgE0.js";
 function bind$2(fn, thisArg) {
   return function wrap() {
@@ -2373,7 +2373,7 @@ const {
   mergeConfig
 } = axios;
 const service = axios.create({
-  baseURL: "http://127.0.0.1:12580",
+  baseURL: "http://36.133.97.26:12580",
   timeout: 600 * 1e3
 });
 service.interceptors.request.use(
@@ -2518,13 +2518,21 @@ function getColumnList() {
 function getShipList() {
   return http.get("/v1/ship/list");
 }
+function getAllShipEffectiveDate() {
+  return http.get("/v1/data/timerange/global");
+}
+function getShipEffectiveDate(params) {
+  return http.get("/v1/data/timerange/nonempty", params);
+}
 const searchApi = {
   uploadFile,
   getShiftsStatistics,
   getOptimalShifts,
   getReplayData,
   getColumnList,
-  getShipList
+  getShipList,
+  getAllShipEffectiveDate,
+  getShipEffectiveDate
 };
 const useLoadingStore = defineStore("loading", {
   state: () => ({
@@ -2557,7 +2565,6 @@ const _sfc_main$7 = {
   setup(__props, { emit: __emit }) {
     const store = useLoadingStore();
     const emit = __emit;
-    ref(false);
     const dialogVisible = useModel(__props, "modelValue");
     const fileName = ref("");
     const shipName = ref("");
@@ -2566,6 +2573,19 @@ const _sfc_main$7 = {
     function uploadFile2(file) {
       const isExcel = file.name.endsWith(".xls") || file.name.endsWith(".xlsx");
       if (isExcel) {
+        const regex = /(\d{4})/g;
+        let match;
+        let firstDateStartIndex = null;
+        while ((match = regex.exec(file.name)) !== null) {
+          if (firstDateStartIndex === null) {
+            firstDateStartIndex = match.index;
+          }
+        }
+        if (firstDateStartIndex !== null) {
+          shipName.value = file.name.substring(0, firstDateStartIndex);
+        } else {
+          ElMessage.error("船名匹配失败");
+        }
         fileName.value = file.name;
         formData.append("file", file.raw);
       } else {
@@ -2589,7 +2609,16 @@ const _sfc_main$7 = {
           setTimeout(() => {
             ElMessage.success("导入成功");
             store.setLoading(false);
-            emit("addData");
+            const regex = /(\d{4}-\d{2}-\d{2})/;
+            const match = fileName.value.match(regex);
+            const dateStr = match[0];
+            const date = /* @__PURE__ */ new Date(`${dateStr}T00:00:00`);
+            const startOfDayTimestamp = date.getTime();
+            const endOfDayTimestamp = new Date(date.setHours(23, 59, 59, 999)).getTime();
+            emit("addData", {
+              shipName: shipName.value,
+              timeRange: [startOfDayTimestamp, endOfDayTimestamp]
+            });
           }, 1e3);
         },
         () => {
@@ -2681,7 +2710,8 @@ const _sfc_main$7 = {
                 createVNode$1(_component_el_input, {
                   modelValue: shipName.value,
                   "onUpdate:modelValue": _cache[2] || (_cache[2] = ($event) => shipName.value = $event),
-                  modelModifiers: { trim: true }
+                  modelModifiers: { trim: true },
+                  disabled: ""
                 }, null, 8, ["modelValue"])
               ])
             ]),
@@ -2723,7 +2753,7 @@ const _sfc_main$7 = {
     };
   }
 };
-const AddDataDialog = /* @__PURE__ */ _export_sfc(_sfc_main$7, [["__scopeId", "data-v-fa831194"]]);
+const AddDataDialog = /* @__PURE__ */ _export_sfc(_sfc_main$7, [["__scopeId", "data-v-d387e37a"]]);
 const _hoisted_1$6 = { class: "search-index" };
 const _hoisted_2$3 = { class: "search-item upload" };
 const _hoisted_3$1 = { class: "search-item shift-name" };
@@ -2734,18 +2764,28 @@ const _sfc_main$6 = {
   emits: ["searchData", "downLoadReportFile"],
   setup(__props, { emit: __emit }) {
     const shipName = ref("");
-    const shipNameList = ref([]);
-    const time = ref("");
+    const shipList = ref([]);
+    const now = /* @__PURE__ */ new Date();
+    const time = ref([
+      new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0),
+      new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999)
+    ]);
     const emit = __emit;
-    function getShipNameList() {
-      searchApi.getShipList().then((res) => {
-        shipNameList.value = res.data ?? [];
-        if (shipNameList.value.length > 0) {
-          shipName.value = shipNameList.value[0];
+    function getShipList2(name) {
+      searchApi.getAllShipEffectiveDate().then((res) => {
+        shipList.value = res.data ?? [];
+        if (shipList.value.length > 0) {
+          if (name) {
+            shipName.value = name;
+          } else {
+            shipName.value = shipList.value[0].shipName;
+          }
+          panelChange(time.value);
+          search();
         }
       });
     }
-    getShipNameList();
+    getShipList2();
     function search() {
       if (!shipName.value) {
         ElMessage.error("请选择船名");
@@ -2776,7 +2816,10 @@ const _sfc_main$6 = {
       window.api.copyToClipboard();
     }
     const addDialogVisible = ref(false);
-    function uploadShipList() {
+    function updateData(val) {
+      time.value = val.timeRange;
+      getShipList2(val.shipName);
+      addDialogVisible.value = false;
     }
     function handleDateChange(value) {
       if (value && value.length === 2) {
@@ -2796,6 +2839,20 @@ const _sfc_main$6 = {
         return;
       }
       emit("downLoadReportFile");
+    }
+    const effectiveDateList = ref([]);
+    function panelChange(val) {
+      const param = {
+        shipName: shipName.value,
+        startDate: new Date(new Date(val[0]).getFullYear(), new Date(val[0]).getMonth(), 1, 0, 0, 0, 0).getTime(),
+        endDate: new Date(new Date(val[1]).getFullYear(), new Date(val[1]).getMonth() + 1, 1, 0, 0, 0, 0).getTime() - 1
+      };
+      searchApi.getShipEffectiveDate(param).then((res) => {
+        effectiveDateList.value = res.data ?? [];
+      });
+    }
+    function setName(val) {
+      return effectiveDateList.value.includes(new Date(val).getTime()) ? "height-light" : "";
     }
     return (_ctx, _cache) => {
       const _component_UploadFilled = resolveComponent("UploadFilled");
@@ -2832,12 +2889,16 @@ const _sfc_main$6 = {
               "onUpdate:modelValue": _cache[1] || (_cache[1] = ($event) => shipName.value = $event)
             }, {
               default: withCtx(() => [
-                (openBlock(true), createElementBlock(Fragment, null, renderList(shipNameList.value, (item) => {
+                (openBlock(true), createElementBlock(Fragment, null, renderList(shipList.value, (item) => {
                   return openBlock(), createBlock(_component_el_option, {
-                    key: item,
-                    label: item,
-                    value: item
-                  }, null, 8, ["label", "value"]);
+                    key: item.shipName,
+                    value: item.shipName
+                  }, {
+                    default: withCtx(() => [
+                      createTextVNode(toDisplayString(item.shipName + " " + item.startDate + "—" + item.endDate), 1)
+                    ]),
+                    _: 2
+                  }, 1032, ["value"]);
                 }), 128))
               ]),
               _: 1
@@ -2852,7 +2913,9 @@ const _sfc_main$6 = {
               "range-separator": "至",
               "start-placeholder": "开始时间",
               "end-placeholder": "结束时间",
-              onChange: handleDateChange
+              "cell-class-name": setName,
+              onChange: handleDateChange,
+              onPanelChange: panelChange
             }, null, 8, ["modelValue"])
           ]),
           createVNode$1(_component_el_button, {
@@ -2883,9 +2946,9 @@ const _sfc_main$6 = {
               _: 1
             }),
             createVNode$1(_component_el_button, {
-              onClick: copyPicture,
+              class: "screen",
               type: "primary",
-              class: "screen"
+              onClick: copyPicture
             }, {
               default: withCtx(() => [
                 createVNode$1(_component_el_icon, { size: "24" }, {
@@ -2899,9 +2962,9 @@ const _sfc_main$6 = {
               _: 1
             }),
             createVNode$1(_component_el_button, {
-              onClick: getPicture,
+              class: "screen",
               type: "primary",
-              class: "screen"
+              onClick: getPicture
             }, {
               default: withCtx(() => _cache[10] || (_cache[10] = [
                 createTextVNode("保存快照")
@@ -2912,15 +2975,15 @@ const _sfc_main$6 = {
         ]),
         addDialogVisible.value ? (openBlock(), createBlock(AddDataDialog, {
           key: 0,
-          onAddData: uploadShipList,
           modelValue: addDialogVisible.value,
-          "onUpdate:modelValue": _cache[3] || (_cache[3] = ($event) => addDialogVisible.value = $event)
+          "onUpdate:modelValue": _cache[3] || (_cache[3] = ($event) => addDialogVisible.value = $event),
+          onAddData: updateData
         }, null, 8, ["modelValue"])) : createCommentVNode("", true)
       ], 64);
     };
   }
 };
-const Search = /* @__PURE__ */ _export_sfc(_sfc_main$6, [["__scopeId", "data-v-7721a88d"]]);
+const Search = /* @__PURE__ */ _export_sfc(_sfc_main$6, [["__scopeId", "data-v-adb54cc6"]]);
 const _hoisted_1$5 = { class: "title-index" };
 const _sfc_main$5 = {
   __name: "Title",
@@ -2964,6 +3027,7 @@ const _sfc_main$4 = {
         }, {
           default: withCtx(() => [
             createVNode$1(_component_el_table_column, {
+              width: "160",
               label: "班组",
               prop: "shiftName"
             }),
@@ -2979,7 +3043,7 @@ const _sfc_main$4 = {
             }),
             createVNode$1(_component_el_table_column, {
               sortable: "",
-              label: "总能耗(kW·h)",
+              label: "单方能耗(kw·h/m³)",
               prop: "totalEnergy"
             })
           ]),
@@ -2989,7 +3053,7 @@ const _sfc_main$4 = {
     };
   }
 };
-const StatisticsTable = /* @__PURE__ */ _export_sfc(_sfc_main$4, [["__scopeId", "data-v-502fadb6"]]);
+const StatisticsTable = /* @__PURE__ */ _export_sfc(_sfc_main$4, [["__scopeId", "data-v-54894581"]]);
 /*! *****************************************************************************
 Copyright (c) Microsoft Corporation.
 
@@ -75409,15 +75473,17 @@ const _sfc_main$3 = {
           top: "84%"
         },
         grid: [
-          { left: "15%", top: "6%", width: "75%", height: "68%" },
-          { left: "15%", top: "6%", width: "75%", height: "56%" },
-          { left: "15%", top: "6%", width: "75%", height: "44%" },
-          { left: "15%", top: "6%", width: "75%", height: "32%" },
-          { left: "15%", top: "6%", width: "75%", height: "20%" },
-          { left: "15%", top: "6%", width: "75%", height: "8%" }
+          { left: "17%", top: "6%", width: "75%", height: "68%" },
+          { left: "17%", top: "6%", width: "75%", height: "56%" },
+          { left: "17%", top: "6%", width: "75%", height: "44%" },
+          { left: "17%", top: "6%", width: "75%", height: "32%" },
+          { left: "17%", top: "6%", width: "75%", height: "20%" },
+          { left: "17%", top: "6%", width: "75%", height: "8%" }
         ],
         tooltip: {
-          formatter: "{a}: ({c})"
+          formatter: function(value) {
+            return `${value.seriesName}：${value.data[0]}`;
+          }
         },
         xAxis: [],
         yAxis: [],
@@ -75520,7 +75586,7 @@ const _sfc_main$3 = {
     };
   }
 };
-const BestConstruction = /* @__PURE__ */ _export_sfc(_sfc_main$3, [["__scopeId", "data-v-52f42c64"]]);
+const BestConstruction = /* @__PURE__ */ _export_sfc(_sfc_main$3, [["__scopeId", "data-v-2c4d2c10"]]);
 const _hoisted_1$2 = { class: "statistics-time" };
 const _hoisted_2$2 = { class: "change-data" };
 const _sfc_main$2 = {
@@ -75655,7 +75721,7 @@ const _sfc_main$2 = {
               }),
               createVNode$1(_component_el_radio, { value: 3 }, {
                 default: withCtx(() => _cache[3] || (_cache[3] = [
-                  createTextVNode("总能耗")
+                  createTextVNode("单方能耗")
                 ])),
                 _: 1
               })
@@ -75672,7 +75738,7 @@ const _sfc_main$2 = {
     };
   }
 };
-const StatisticPie = /* @__PURE__ */ _export_sfc(_sfc_main$2, [["__scopeId", "data-v-d19cc6da"]]);
+const StatisticPie = /* @__PURE__ */ _export_sfc(_sfc_main$2, [["__scopeId", "data-v-3a9622e0"]]);
 const _hoisted_1$1 = { class: "replay-data" };
 const _hoisted_2$1 = { class: "data-type" };
 const _sfc_main$1 = {
@@ -75713,22 +75779,27 @@ const _sfc_main$1 = {
         grid: {
           left: "3%",
           right: "4%",
-          bottom: "3%",
+          bottom: "6%",
           containLabel: true
         },
         xAxis: {
           type: "time",
-          boundaryGap: false
+          boundaryGap: false,
+          axisLabel: {
+            formatter: function() {
+              return "{yyyy}-{MM}-{dd}\n{HH}:{mm}:{ss}";
+            }
+          }
         },
         dataZoom: [
           {
             type: "inside",
             start: 0,
-            end: 30
+            end: 100
           },
           {
             start: 0,
-            end: 30
+            end: 100
           }
         ],
         yAxis: {
@@ -75822,7 +75893,7 @@ const _sfc_main$1 = {
     };
   }
 };
-const ReplayData = /* @__PURE__ */ _export_sfc(_sfc_main$1, [["__scopeId", "data-v-dfa96b99"]]);
+const ReplayData = /* @__PURE__ */ _export_sfc(_sfc_main$1, [["__scopeId", "data-v-e8575cf9"]]);
 const _hoisted_1 = { class: "statistics-index" };
 const _hoisted_2 = { class: "header" };
 const _hoisted_3 = { class: "content" };
@@ -75995,7 +76066,6 @@ const _sfc_main = {
     function downLoadReportFile() {
       const pieImg = pieChart.value.exportChartAsImage();
       const scatterImg = bestChart.value.exportChartAsImage();
-      console.log(dayjs(searchCondition.value.startDate).format("YYYY-MM-DD"));
       let obj = {
         shiftName: JSON.parse(JSON.stringify(searchCondition.value.shipName)),
         startTime: JSON.parse(JSON.stringify(searchCondition.value.startDate)),
@@ -76071,7 +76141,7 @@ const _sfc_main = {
     };
   }
 };
-const Index = /* @__PURE__ */ _export_sfc(_sfc_main, [["__scopeId", "data-v-41fd632f"]]);
+const Index = /* @__PURE__ */ _export_sfc(_sfc_main, [["__scopeId", "data-v-a28dbee1"]]);
 export {
   Index as default
 };

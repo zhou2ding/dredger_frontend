@@ -92,7 +92,9 @@ function setOption() {
       { left: '17%', top: '6%', width: '75%', height: '8%' }
     ],
     tooltip: {
-      formatter: '{a}: ({c})'
+      formatter: function(value){
+        return `${value.seriesName}：${value.data[0]}`
+      }
     },
     xAxis: [],
     yAxis: [],

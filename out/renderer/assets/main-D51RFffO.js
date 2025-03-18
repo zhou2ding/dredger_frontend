@@ -1,4 +1,4 @@
-const __vite__mapDeps=(i,m=__vite__mapDeps,d=(m.f||(m.f=["./Index-pLPQxZE8.js","./index-Di9skDmY.js","./index-B7P0T3A7.css","./_plugin-vue_export-helper-1tPrXgE0.js","./Index-e59C7eOr.css"])))=>i.map(i=>d[i]);
+const __vite__mapDeps=(i,m=__vite__mapDeps,d=(m.f||(m.f=["./Index-DL9YYgYF.js","./index-Di9skDmY.js","./index-B7P0T3A7.css","./_plugin-vue_export-helper-1tPrXgE0.js","./Index-D3gBrEjD.css"])))=>i.map(i=>d[i]);
 import { s as shallowRef, d as defineComponent, u as unref, a as shallowReactive, c as computed, p as provide, r as ref, w as watch, h, n as nextTick, b as reactive, i as inject, e as createElementBlock, f as createVNode, g as withCtx, E as ElConfigProvider, j as resolveComponent, o as openBlock, k as createBlock, l as effectScope, m as markRaw, q as hasInjectionContext, t as isRef, v as isReactive, x as toRaw, y as getCurrentScope, z as onScopeDispose, A as toRefs, B as createApp, C as installer, D as ElementPlusIconsVue } from "./index-Di9skDmY.js";
 const scriptRel = /* @__PURE__ */ function detectScriptRel() {
   const relList = typeof document !== "undefined" && document.createElement("link").relList;
@@ -1824,7 +1824,7 @@ const routes = [
     children: [
       {
         path: "/statistics",
-        component: () => __vitePreload(() => import("./Index-pLPQxZE8.js"), true ? __vite__mapDeps([0,1,2,3,4]) : void 0, import.meta.url)
+        component: () => __vitePreload(() => import("./Index-DL9YYgYF.js"), true ? __vite__mapDeps([0,1,2,3,4]) : void 0, import.meta.url)
       }
     ]
   }

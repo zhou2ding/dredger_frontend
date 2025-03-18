@@ -38,3 +38,9 @@ body {
 .el-loading-mask {
   z-index: 5000 !important;
 }
+.height-light .el-date-table-cell .el-date-table-cell__text {
+  background: #F56C6C;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+}
