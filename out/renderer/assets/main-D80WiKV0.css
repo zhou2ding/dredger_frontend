@@ -1,0 +1,40 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-size: 16px;
+}
+html,
+body {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+#app {
+  height: 100%;
+  width: 100%;
+  min-width: 1400px;
+  overflow: auto;
+}
+.el-input .el-input__wrapper .el-input__inner {
+  height: 44px;
+}
+.el-date-editor {
+  height: 44px !important;
+}
+.el-date-editor .el-range-input {
+  height: 44px !important;
+}
+.el-button {
+  height: 44px !important;
+  width: 80px;
+}
+.el-select .el-select__wrapper {
+  height: 44px ;
+}
+.el-radio-group .el-radio .el-radio__label {
+  font-size: 16px;
+}
+.el-loading-mask {
+  z-index: 5000 !important;
+}
