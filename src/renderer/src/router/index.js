@@ -8,7 +8,18 @@ const routes = [
     children: [
       {
         path: '/statistics',
+        name: 'Statistics',
         component: () => import('../views/statistics/Index.vue')
+      },
+      {
+        path: '/soil',
+        name: 'SoilRecognition',
+        component: () => import('../views/soil/Index.vue')
+      },
+      {
+        path: '/sensor',
+        name: 'Sensor',
+        component: () => import('../views/sensor/Index.vue')
       }
     ]
   }

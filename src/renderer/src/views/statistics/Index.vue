@@ -4,7 +4,7 @@ import StatisticsTable from './components/StatisticTable.vue'
 import BestConstruction from './components/BestConstruction.vue'
 import StatisticPie from './components/StatisticPie.vue'
 import ReplayData from './components/ReplayData.vue'
-import { nextTick, ref } from 'vue'
+import { ref } from 'vue'
 import searchApi from '../../api/search/index'
 import { dayjs } from 'element-plus'
 
@@ -68,6 +68,20 @@ const paramObj = ref({
       average: 0,
       variance: 0,
       maxProductionParam: 0
+    },
+    boosterPumpDischargePressure: {
+      min: 0,
+      max: 10,
+      average: 0,
+      variance: 0,
+      maxProductionParam: 0
+    },
+    vacuumDegree: {
+      min: 0,
+      max: 10,
+      average: 0,
+      variance: 0,
+      maxProductionParam: 0
     }
   }
 })
@@ -92,13 +106,11 @@ function getShiftsStatistics() {
 /**
  * 获取列表
  */
-function getColumnList() {
-  return searchApi.getColumnList().then((res) => {
+function getColumnList(shipName) {
+  return searchApi.getColumnList(shipName).then((res) => {
     columnList.value = res.data ?? []
   })
 }
-
-getColumnList()
 
 /**
  * 查询最优班组数据
@@ -150,6 +162,20 @@ function getOptimalShifts() {
           average: 0,
           variance: 0,
           maxProductionParam: 0
+        },
+        boosterPumpDischargePressure: {
+          min: 0,
+          max: 10,
+          average: 0,
+          variance: 0,
+          maxProductionParam: 0
+        },
+        vacuumDegree: {
+          min: 0,
+          max: 10,
+          average: 0,
+          variance: 0,
+          maxProductionParam: 0
         }
       }
     }
@@ -184,7 +210,11 @@ function updateDateType() {
 async function searchData(obj) {
   store.setLoading(true)
   searchCondition.value = obj
-  await Promise.all([getShiftsStatistics(), getOptimalShifts()])
+  await Promise.all([
+    getShiftsStatistics(),
+    getOptimalShifts(),
+    getColumnList(searchCondition.value.shipName)
+  ])
   time.value = new Date().getTime()
   store.setLoading(false)
 }
@@ -277,7 +307,6 @@ window.api.getDownLoadSingle(async () => {
 .statistics-index {
   width: 100%;
   height: 100%;
-  overflow: hidden;
   display: flex;
   flex-direction: column;
 

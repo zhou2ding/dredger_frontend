@@ -1,5 +1,4 @@
-
-import request from './request';
+import request from './request'
 
 const http = {
   /**
@@ -14,9 +13,9 @@ const http = {
       url: url,
       params: params,
       responseType: type,
-      cache: false,
-    };
-    return request(config);
+      cache: false
+    }
+    return request(config)
   },
 
   /**
@@ -30,9 +29,9 @@ const http = {
       method: 'post',
       url: url,
       data: params,
-      ...con,
-    };
-    return request(config);
+      ...con
+    }
+    return request(config)
   },
 
   /**
@@ -44,9 +43,9 @@ const http = {
     const config = {
       method: 'put',
       url: url,
-      data: params,
-    };
-    return request(config);
+      data: params
+    }
+    return request(config)
   },
 
   /**
@@ -58,9 +57,9 @@ const http = {
     const config = {
       method: 'delete',
       url: url,
-      params: params,
-    };
-    return request(config);
+      params: params
+    }
+    return request(config)
   },
 
   /**
@@ -73,10 +72,10 @@ const http = {
       headers: { 'Content-type': 'multipart/form-data' },
       method: 'post',
       url: url,
-      data: formData,
-    };
-    return request(config);
-  },
-};
+      data: formData
+    }
+    return request(config)
+  }
+}
 
-export default http;
+export default http

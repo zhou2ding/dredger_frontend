@@ -2,6 +2,7 @@
 import { dayjs, ElMessage } from 'element-plus'
 import { ref } from 'vue'
 import AddDataDialog from './AddDataDialog.vue'
+import TheoreticalParamsDialog from './TheoreticalParamsDialog.vue'
 import searchApi from '../../../api/search/index'
 
 const shipName = ref('')
@@ -72,6 +73,8 @@ function copyPicture() {
 
 const addDialogVisible = ref(false)
 
+const theoreticalParamsDialogVisible = ref(false)
+
 /**
  * 数据上传成功后；更新截面数据
  * @param val 搜索参数
@@ -80,6 +83,13 @@ function updateData(val) {
   time.value = val.timeRange
   getShipList(val.shipName)
   addDialogVisible.value = false
+}
+
+/**
+ * 保存理论最优参数
+ */
+function handleSaveTheoreticalParams() {
+  console.log('子组件已成功保存理论最优参数。')
 }
 
 function handleDateChange(value) {
@@ -110,8 +120,8 @@ function exportFile() {
   emit('downLoadReportFile')
 }
 
-
 const effectiveDateList = ref([])
+
 /**
  * 切换月份
  * @param val
@@ -119,8 +129,25 @@ const effectiveDateList = ref([])
 function panelChange(val) {
   const param = {
     shipName: shipName.value,
-    startDate: new Date(new Date(val[0]).getFullYear(), new Date(val[0]).getMonth(), 1, 0, 0, 0, 0).getTime(),
-    endDate: new Date(new Date(val[1]).getFullYear(), new Date(val[1]).getMonth() + 1, 1, 0, 0, 0, 0).getTime() - 1
+    startDate: new Date(
+      new Date(val[0]).getFullYear(),
+      new Date(val[0]).getMonth(),
+      1,
+      0,
+      0,
+      0,
+      0
+    ).getTime(),
+    endDate:
+      new Date(
+        new Date(val[1]).getFullYear(),
+        new Date(val[1]).getMonth() + 1,
+        1,
+        0,
+        0,
+        0,
+        0
+      ).getTime() - 1
   }
   searchApi.getShipEffectiveDate(param).then((res) => {
     effectiveDateList.value = res.data ?? []
@@ -128,9 +155,7 @@ function panelChange(val) {
 }
 
 function setName(val) {
-  return effectiveDateList.value.includes(new Date(val).getTime())
-    ? 'height-light'
-    : ''
+  return effectiveDateList.value.includes(new Date(val).getTime()) ? 'height-light' : ''
 }
 </script>
 
@@ -147,12 +172,8 @@ function setName(val) {
     <div class="search-item shift-name">
       <div class="name">船名</div>
       <el-select v-model="shipName">
-        <el-option
-          v-for="item in shipList"
-          :key="item.shipName"
-          :value="item.shipName"
-        >
-          {{item.shipName+' ' + item.startDate+'—'+item.endDate}}
+        <el-option v-for="item in shipList" :key="item.shipName" :value="item.shipName">
+          {{ item.shipName + ' ' + item.startDate + '—' + item.endDate }}
         </el-option>
       </el-select>
     </div>
@@ -170,6 +191,11 @@ function setName(val) {
       ></el-date-picker>
     </div>
     <el-button type="primary" class="search" @click="search">搜索</el-button>
+    <div class="input">
+      <el-button type="primary" class="button" @click="theoreticalParamsDialogVisible = true">
+        理论最优施工参数
+      </el-button>
+    </div>
     <div class="capture">
       <el-button type="primary" class="screen" @click="exportFile">
         <el-icon size="24">
@@ -191,6 +217,11 @@ function setName(val) {
     v-if="addDialogVisible"
     @add-data="updateData"
   ></AddDataDialog>
+  <TheoreticalParamsDialog
+    v-if="theoreticalParamsDialogVisible"
+    v-model="theoreticalParamsDialogVisible"
+    @save="handleSaveTheoreticalParams"
+  ></TheoreticalParamsDialog>
 </template>
 
 <style scoped>
@@ -238,6 +269,16 @@ function setName(val) {
 
   .search {
     margin-left: 24px;
+  }
+
+  .input {
+    display: flex;
+    align-items: center;
+    margin-left: 24px;
+
+    .button {
+      width: 160px;
+    }
   }
 
   .capture {

@@ -40,8 +40,8 @@ function getReplayData(columnName, params) {
  * 获取列名
  * @returns {Promise<axios.AxiosResponse<any>>}
  */
-function getColumnList() {
-  return http.get('/v1/data/column/list')
+function getColumnList(shipName) {
+  return http.get(`/v1/data/column/list/${shipName}`)
 }
 
 /**
@@ -52,7 +52,6 @@ function getShipList() {
   return http.get('/v1/ship/list')
 }
 
-
 /**
  * 获取所有数据的有效日期
  * @returns {Promise<axios.AxiosResponse<any>>}
@@ -60,7 +59,6 @@ function getShipList() {
 function getAllShipEffectiveDate() {
   return http.get('/v1/data/timerange/global')
 }
-
 
 /**
  * 根据船名获取该穿某段时间段内的有数据的日期
@@ -71,6 +69,24 @@ function getShipEffectiveDate(params) {
   return http.get('/v1/data/timerange/nonempty', params)
 }
 
+/**
+ * 设置理论最优施工参数
+ * @param params
+ * @returns {Promise<axios.AxiosResponse<any>>}
+ */
+function setTheoryOptimal(params) {
+  return http.post('/v1/data/theory/optimal', params)
+}
+
+/**
+ * 获取理论最优参数
+ * @param params { shipName: string }
+ * @returns {Promise<axios.AxiosResponse<any>>}
+ */
+function getTheoryOptimal(params) {
+  return http.get('/v1/data/theory/optimal', params)
+}
+
 export default {
   uploadFile,
   getShiftsStatistics,
@@ -79,5 +95,7 @@ export default {
   getColumnList,
   getShipList,
   getAllShipEffectiveDate,
-  getShipEffectiveDate
+  getShipEffectiveDate,
+  setTheoryOptimal,
+  getTheoryOptimal
 }
