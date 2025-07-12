@@ -17,21 +17,27 @@ const api = {
   postReportMessage: (info) => {
     return electron.ipcRenderer.send("report-message", info);
   },
+  // === 修改点 1: 让 getReportMessage 也返回一个注销函数 ===
   //pdf模板接受显示的数据
   getReportMessage: (callback) => {
-    electron.ipcRenderer.on("message-from-main", (event, data) => {
-      callback(data);
-    });
+    const listener = (event, data) => callback(data);
+    electron.ipcRenderer.on("message-from-main", listener);
+    return () => {
+      electron.ipcRenderer.removeListener("message-from-main", listener);
+    };
   },
   //发送pdf模板渲染完成信息
   readyDownload: () => {
     return electron.ipcRenderer.send("read-download");
   },
+  // === 修改点 2: 让 getDownLoadSingle 返回一个注销函数 (核心修复) ===
   //接受可以开始下载pdf模板信号
   getDownLoadSingle: (callback) => {
-    electron.ipcRenderer.on("read-download", (event, data) => {
-      callback(data);
-    });
+    const listener = (event, data) => callback(data);
+    electron.ipcRenderer.on("read-download", listener);
+    return () => {
+      electron.ipcRenderer.removeListener("read-download", listener);
+    };
   },
   //pdf模板buffer格式返回
   downLoadReport: () => {

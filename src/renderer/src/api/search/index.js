@@ -87,6 +87,10 @@ function getTheoryOptimal(params) {
   return http.get('/v1/data/theory/optimal', params)
 }
 
+function getAllShiftParameters(params) {
+  return http.get('/v1/shifts/parameters', params)
+}
+
 export default {
   uploadFile,
   getShiftsStatistics,
@@ -97,5 +101,6 @@ export default {
   getAllShipEffectiveDate,
   getShipEffectiveDate,
   setTheoryOptimal,
-  getTheoryOptimal
+  getTheoryOptimal,
+  getAllShiftParameters
 }

@@ -4,9 +4,29 @@ import StatisticsTable from './components/StatisticTable.vue'
 import BestConstruction from './components/BestConstruction.vue'
 import StatisticPie from './components/StatisticPie.vue'
 import ReplayData from './components/ReplayData.vue'
-import { ref } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import searchApi from '../../api/search/index'
 import { dayjs } from 'element-plus'
+
+// 定义一个变量，用来持有从 aip.getDownLoadSingle 返回的“注销函数”
+let unregisterDownLoadSingle = null
+
+// 使用 onMounted，在组件加载到页面上时执行
+onMounted(() => {
+  // 调用API注册监听，并把返回的“注销函数”保存到我们定义的变量中
+  unregisterDownLoadSingle = window.api.getDownLoadSingle(async () => {
+    await downLoadReport()
+  })
+})
+
+// 使用 onUnmounted，在组件离开页面被销毁时执行
+onUnmounted(() => {
+  // 如果“注销函数”存在，就调用它来移除监听，防止内存泄漏和重复执行
+  if (unregisterDownLoadSingle) {
+    unregisterDownLoadSingle()
+    unregisterDownLoadSingle = null // 清理变量是个好习惯
+  }
+})
 
 const searchCondition = ref({
   //搜素条件
@@ -203,6 +223,18 @@ function updateDateType() {
   }
 }
 
+function getAllShiftParameters() {
+  return searchApi.getAllShiftParameters(searchCondition.value).then((res) => {
+    allShiftsParamsData.value = res.data ?? []
+  })
+}
+
+function getTheoryOptimal() {
+  return searchApi.getTheoryOptimal({ shipName: searchCondition.value.shipName }).then((res) => {
+    theoryOptimalData.value = res.data ?? null
+  })
+}
+
 /**
  * 查询搜索数据
  * @param obj
@@ -213,7 +245,9 @@ async function searchData(obj) {
   await Promise.all([
     getShiftsStatistics(),
     getOptimalShifts(),
-    getColumnList(searchCondition.value.shipName)
+    getColumnList(searchCondition.value.shipName),
+    getAllShiftParameters(),
+    getTheoryOptimal()
   ])
   time.value = new Date().getTime()
   store.setLoading(false)
@@ -221,20 +255,36 @@ async function searchData(obj) {
 
 const pieChart = ref(null)
 const bestChart = ref(null)
-
+const allShiftsParamsData = ref([]) // 所有班组的详细施工参数
+const theoryOptimalData = ref(null) // 理论最优施工参数
 /**
  * 导出分析报表文件
  */
 function downLoadReportFile() {
   const pieImg = pieChart.value.exportChartAsImage()
   const scatterImg = bestChart.value.exportChartAsImage()
+
+  // === 构造新的对比表格数据 ===
+  const comparisonTableData = {
+    // 理论参数
+    theory: theoryOptimalData.value,
+    // 各班组实际参数
+    shifts: allShiftsParamsData.value,
+    // 最优班组名称，用于标注
+    optimalShiftNames: {
+      maxProduction: bestParamData.value?.maxProductionShift?.shiftName,
+      minEnergy: bestParamData.value?.minEnergyShift?.shiftName
+    }
+  }
+
   let obj = {
     shiftName: JSON.parse(JSON.stringify(searchCondition.value.shipName)),
     startTime: JSON.parse(JSON.stringify(searchCondition.value.startDate)),
     endTime: JSON.parse(JSON.stringify(searchCondition.value.endDate)),
     pieImg: pieImg,
     scatterImg: scatterImg,
-    tableData: JSON.parse(JSON.stringify(shiftsStaticData.value))
+    tableData: JSON.parse(JSON.stringify(shiftsStaticData.value)),
+    comparisonData: JSON.parse(JSON.stringify(comparisonTableData))
   }
   window.api.postReportMessage(obj)
 }
@@ -256,10 +306,6 @@ async function downLoadReport() {
   URL.revokeObjectURL(url)
   a.remove()
 }
-
-window.api.getDownLoadSingle(async () => {
-  await downLoadReport()
-})
 </script>
 
 <template>
