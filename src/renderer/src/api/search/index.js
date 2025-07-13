@@ -91,6 +91,12 @@ function getAllShiftParameters(params) {
   return http.get('/v1/shifts/parameters', params)
 }
 
+function generateSolid(params) {
+  // 我们在参数中加入一个 'type' 字段来区分具体是哪个生成功能
+  // 例如 params 可以是 { type: 'planar_point_cloud', referenceZ: 0, ... }
+  return http.post('/v1/solid/gen', params)
+}
+
 export default {
   uploadFile,
   getShiftsStatistics,
@@ -102,5 +108,6 @@ export default {
   getShipEffectiveDate,
   setTheoryOptimal,
   getTheoryOptimal,
-  getAllShiftParameters
+  getAllShiftParameters,
+  generateSolid
 }

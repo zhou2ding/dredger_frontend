@@ -101,7 +101,7 @@ electron.ipcMain.on("read-download", async () => {
   }
 });
 electron.ipcMain.handle("download-pdf", async (event, info) => {
-  const pdfBuffer = await fileWindow.webContents.printToPDF({
+  return await fileWindow.webContents.printToPDF({
     printBackground: true,
     pageSize: {
       width: 8.5,
@@ -109,5 +109,18 @@ electron.ipcMain.handle("download-pdf", async (event, info) => {
     },
     landscape: false
   });
-  return pdfBuffer;
+});
+electron.ipcMain.handle("select-file", async () => {
+  const { canceled, filePaths } = await electron.dialog.showOpenDialog({
+    properties: ["openFile"],
+    // 你可以根据需要添加文件类型过滤器
+    filters: [
+      { name: "Data Files", extensions: ["mdb", "xlsx", "brd", "xyz"] },
+      { name: "All Files", extensions: ["*"] }
+    ]
+  });
+  if (!canceled && filePaths.length > 0) {
+    return filePaths[0];
+  }
+  return null;
 });

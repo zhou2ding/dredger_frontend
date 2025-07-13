@@ -1,6 +1,6 @@
-import { app, shell, BrowserWindow, ipcMain, clipboard, nativeImage } from 'electron'
+import { app, BrowserWindow, clipboard, dialog, ipcMain, nativeImage, shell } from 'electron' // <--- 修改点1：在这里添加 dialog
 import { join } from 'path'
-import { electronApp, optimizer, is } from '@electron-toolkit/utils'
+import { electronApp, is, optimizer } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 
 let fileWindow, mainWindow
@@ -24,7 +24,7 @@ function createWindow() {
     }
   })
   // 移除默认菜单
-  mainWindow.setMenu(null);
+  mainWindow.setMenu(null)
   fileWindow = new BrowserWindow({
     width: 800,
     height: 1200,
@@ -129,13 +129,28 @@ ipcMain.on('read-download', async () => {
 })
 //下载pdf报表信息
 ipcMain.handle('download-pdf', async (event, info) => {
-  const pdfBuffer = await fileWindow.webContents.printToPDF({
+  return await fileWindow.webContents.printToPDF({
     printBackground: true,
     pageSize: {
       width: 8.5,
       height: 12
     },
-    landscape: false,
+    landscape: false
   })
-  return pdfBuffer
+})
+
+// === 修改点2：在这里添加用于选择文件的IPC处理器 ===
+ipcMain.handle('select-file', async () => {
+  const { canceled, filePaths } = await dialog.showOpenDialog({
+    properties: ['openFile'],
+    // 你可以根据需要添加文件类型过滤器
+    filters: [
+      { name: 'Data Files', extensions: ['mdb', 'xlsx', 'brd', 'xyz'] },
+      { name: 'All Files', extensions: ['*'] }
+    ]
+  })
+  if (!canceled && filePaths.length > 0) {
+    return filePaths[0] // 返回选择的文件路径
+  }
+  return null // 如果用户取消选择，则返回 null
 })

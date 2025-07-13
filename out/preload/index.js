@@ -45,6 +45,9 @@ const api = {
       console.error("Failed to send message:", error);
       throw new Error("IPC communication failed");
     });
+  },
+  selectFile: () => {
+    return electron.ipcRenderer.invoke("select-file");
   }
 };
 if (process.contextIsolated) {

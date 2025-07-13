@@ -22,11 +22,11 @@ const api = {
   // === 修改点 1: 让 getReportMessage 也返回一个注销函数 ===
   //pdf模板接受显示的数据
   getReportMessage: (callback) => {
-    const listener = (event, data) => callback(data);
-    ipcRenderer.on('message-from-main', listener);
+    const listener = (event, data) => callback(data)
+    ipcRenderer.on('message-from-main', listener)
     // 返回一个函数，用于移除监听
     return () => {
-      ipcRenderer.removeListener('message-from-main', listener);
+      ipcRenderer.removeListener('message-from-main', listener)
     }
   },
 
@@ -38,12 +38,12 @@ const api = {
   // === 修改点 2: 让 getDownLoadSingle 返回一个注销函数 (核心修复) ===
   //接受可以开始下载pdf模板信号
   getDownLoadSingle: (callback) => {
-    const listener = (event, data) => callback(data);
-    ipcRenderer.on('read-download', listener);
+    const listener = (event, data) => callback(data)
+    ipcRenderer.on('read-download', listener)
     // 返回一个函数，用于移除监听
     return () => {
-      ipcRenderer.removeListener('read-download', listener);
-    };
+      ipcRenderer.removeListener('read-download', listener)
+    }
   },
 
   //pdf模板buffer格式返回
@@ -52,6 +52,10 @@ const api = {
       console.error('Failed to send message:', error)
       throw new Error('IPC communication failed')
     })
+  },
+
+  selectFile: () => {
+    return ipcRenderer.invoke('select-file') // 调用主进程中定义好的 'select-file' 处理器
   }
 }
 
