@@ -202,7 +202,6 @@ const handleConfirm = async () => {
       >
         <el-input-number
           v-model="formData.vacuumDegree"
-          :min="0"
           controls-position="right"
           style="width: 100%"
         />

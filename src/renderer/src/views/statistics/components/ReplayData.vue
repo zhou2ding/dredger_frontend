@@ -4,13 +4,12 @@ import * as echarts from 'echarts'
 import { ref, onMounted, watch } from 'vue'
 import searchApi from '../../../api/search/index'
 import { useResizeObserver } from '@vueuse/core'
-import { dayjs } from "element-plus";
 
 const chartDom = ref(null)
 
 const column = ref('')
 const columnName = ref('')
-const columnUnit = ref('')//所选列单位名
+const columnUnit = ref('') //所选列单位名
 
 const { searchCondition, time, columnList } = defineProps({
   searchCondition: {
@@ -50,9 +49,9 @@ function setOption(data = []) {
     xAxis: {
       type: 'time',
       boundaryGap: false,
-      axisLabel:{
+      axisLabel: {
         formatter: function () {
-          return '{yyyy}-{MM}-{dd}'+'\n'+'{HH}:{mm}:{ss}'
+          return '{yyyy}-{MM}-{dd}' + '\n' + '{HH}:{mm}:{ss}'
         }
       }
     },
@@ -69,10 +68,10 @@ function setOption(data = []) {
     ],
     yAxis: {
       type: 'value',
-      name:'单位：'+columnUnit.value,
+      name: '单位：' + columnUnit.value,
       nameTextStyle: {
-        color: "#333333",
-        nameLocation: "start",
+        color: '#333333',
+        nameLocation: 'start'
       },
       axisLine: {
         show: true

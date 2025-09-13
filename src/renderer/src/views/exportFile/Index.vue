@@ -32,7 +32,8 @@ const exportInfo = ref({
     theory: null,
     shifts: [],
     optimalShiftNames: {}
-  }
+  },
+  replayChartImages: []
 })
 
 // computed 属性用来处理和转换数据，使其适用于 el-table
@@ -67,12 +68,12 @@ const comparisonTable = computed(() => {
 
   // 2. 定义参数行和单位 (key 对应后端 ParameterStats 结构体的字段名)
   const paramKeys = {
-    horizontalSpeed: '横移速度 (m/min)',
-    carriageTravel: '台车行程 (m)',
-    cutterDepth: '绞刀深度 (m)',
-    sPumpRpm: '水下泵转速 (rpm)',
-    concentration: '浓度 (%)',
     flow: '流量 (m³/h)',
+    concentration: '浓度 (%)',
+    sPumpRpm: '水下泵转速 (rpm)',
+    cutterDepth: '绞刀深度 (m)',
+    carriageTravel: '台车行程 (m)',
+    horizontalSpeed: '横移速度 (m/min)',
     boosterPumpDischargePressure: '升压泵排出压力 (bar)',
     vacuumDegree: '真空度 (kPa)'
   }
@@ -164,6 +165,16 @@ const comparisonTable = computed(() => {
         </el-table>
       </div>
     </div>
+
+    <div class="floor-1 page-break" v-if="exportInfo.replayChartImages.length > 0">
+      <div class="title">历史数据回放</div>
+      <div class="info">
+        <div v-for="chart in exportInfo.replayChartImages" :key="chart.title" class="chart-item">
+          <div class="sub-title">{{ chart.title }}</div>
+          <img class="img" :src="chart.src" alt="" />
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -223,5 +234,18 @@ const comparisonTable = computed(() => {
 
 .page-break {
   break-before: page; /* 打印时在此元素前强制分页 */
+}
+
+/* [新增] 样式 */
+.chart-item {
+  margin-bottom: 20px;
+  page-break-inside: avoid; /* 避免图表和标题被分页截断 */
+}
+
+.sub-title {
+  font-size: 20px;
+  font-weight: bold;
+  padding: 8px 0;
+  text-align: center;
 }
 </style>

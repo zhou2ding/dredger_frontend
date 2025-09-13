@@ -7,6 +7,7 @@ import ReplayData from './components/ReplayData.vue'
 import { ref, onMounted, onUnmounted } from 'vue'
 import searchApi from '../../api/search/index'
 import { dayjs } from 'element-plus'
+import * as echarts from 'echarts'
 
 // 定义一个变量，用来持有从 aip.getDownLoadSingle 返回的“注销函数”
 let unregisterDownLoadSingle = null
@@ -140,29 +141,7 @@ function getOptimalShifts() {
     const obj = {
       shiftName: '',
       parameters: {
-        horizontalSpeed: {
-          min: 0,
-          max: 10,
-          average: 0,
-          variance: 0,
-          maxProductionParam: 0,
-          warning: ''
-        },
-        carriageTravel: {
-          min: 0,
-          max: 10,
-          average: 0,
-          variance: 0,
-          maxProductionParam: 0
-        },
-        cutterDepth: {
-          min: 0,
-          max: 10,
-          average: 0,
-          variance: 0,
-          maxProductionParam: 0
-        },
-        sPumpRpm: {
+        flow: {
           min: 0,
           max: 10,
           average: 0,
@@ -176,12 +155,34 @@ function getOptimalShifts() {
           variance: 0,
           maxProductionParam: 0
         },
-        flow: {
+        sPumpRpm: {
           min: 0,
           max: 10,
           average: 0,
           variance: 0,
           maxProductionParam: 0
+        },
+        cutterDepth: {
+          min: 0,
+          max: 10,
+          average: 0,
+          variance: 0,
+          maxProductionParam: 0
+        },
+        carriageTravel: {
+          min: 0,
+          max: 10,
+          average: 0,
+          variance: 0,
+          maxProductionParam: 0
+        },
+        horizontalSpeed: {
+          min: 0,
+          max: 10,
+          average: 0,
+          variance: 0,
+          maxProductionParam: 0,
+          warning: ''
         },
         boosterPumpDischargePressure: {
           min: 0,
@@ -231,7 +232,7 @@ function getAllShiftParameters() {
 
 function getTheoryOptimal() {
   return searchApi.getTheoryOptimal({ shipName: searchCondition.value.shipName }).then((res) => {
-    theoryOptimalData.value = res.data ?? null
+    theoryOptimalData.value = res.data ?? []
   })
 }
 
@@ -256,13 +257,113 @@ async function searchData(obj) {
 const pieChart = ref(null)
 const bestChart = ref(null)
 const allShiftsParamsData = ref([]) // 所有班组的详细施工参数
-const theoryOptimalData = ref(null) // 理论最优施工参数
+const theoryOptimalData = ref([]) // 理论最优施工参数
+
+/**
+ * 辅助函数：为单个历史数据回放参数生成图表图片
+ * @param {Array} data - ECharts series data, format: [[timestamp, value], ...]
+ * @param {string} name - The Chinese name of the column (e.g., '流速')
+ * @param {string} unit - The unit of the column (e.g., 'm/s')
+ * @returns {string} - Base64 encoded image string
+ */
+function generateReplayChartImage(data, name, unit) {
+  const option = {
+    // ================== 新增此行，禁用动画 ==================
+    animation: false,
+    // ====================================================
+    tooltip: {
+      trigger: 'axis'
+    },
+    legend: {
+      data: [name]
+    },
+    grid: {
+      left: '3%',
+      right: '4%',
+      bottom: '6%',
+      containLabel: true
+    },
+    xAxis: {
+      type: 'time',
+      boundaryGap: false
+    },
+    dataZoom: [{ type: 'inside' }, {}],
+    yAxis: {
+      type: 'value',
+      name: '单位：' + unit,
+      nameTextStyle: {
+        color: '#333333',
+        nameLocation: 'start'
+      },
+      axisLine: {
+        show: true
+      }
+    },
+    series: [
+      {
+        name: name,
+        type: 'line',
+        data: data,
+        smooth: true,
+        large: true,
+        largeThreshold: 10000,
+        sampling: 'average'
+      }
+    ]
+  }
+
+  // 使用 echarts.init 创建一个不显示的图表实例来生成图片
+  const chartContainer = document.createElement('div')
+  chartContainer.style.width = '800px'
+  chartContainer.style.height = '400px'
+  const myChart = echarts.init(chartContainer)
+  myChart.setOption(option)
+  const imgBase64 = myChart.getDataURL({ type: 'png', pixelRatio: 2, backgroundColor: '#fff' })
+  myChart.dispose()
+  return imgBase64
+}
+
 /**
  * 导出分析报表文件
  */
-function downLoadReportFile() {
+async function downLoadReportFile() {
+  store.setLoading(true)
   const pieImg = pieChart.value.exportChartAsImage()
   const scatterImg = bestChart.value.exportChartAsImage()
+
+  // === [新增] 获取历史数据回放图表 ===
+  const replayChartImages = []
+  // 1. 定义需要导出的列的中文名
+  const requiredColumns = ['流速', '密度', '产量', '小时产量率', '水下泵排出压力', '升压泵排出压力']
+  // 2. 从 columnList 中筛选出这些列的完整信息
+  const targetColumns = columnList.value.filter((col) =>
+    requiredColumns.includes(col.columnChineseName)
+  )
+
+  if (targetColumns.length > 0) {
+    // 3. 并行获取所有需要的数据
+    const dataPromises = targetColumns.map((col) =>
+      searchApi.getReplayData(col.columnName, searchCondition.value)
+    )
+    const results = await Promise.all(dataPromises)
+
+    // 4. 为获取到的每组数据生成图表图片
+    results.forEach((res, index) => {
+      const rawData = res.data ?? []
+      const chartData = rawData.map((item) => [item.timestamp, item.value])
+      const columnInfo = targetColumns[index]
+      const image = generateReplayChartImage(
+        chartData,
+        columnInfo.columnChineseName,
+        columnInfo.columnUnit
+      )
+      replayChartImages.push({
+        title: columnInfo.columnChineseName,
+        src: image
+      })
+    })
+  }
+  // === [新增] 逻辑结束 ===
 
   // === 构造新的对比表格数据 ===
   const comparisonTableData = {
@@ -284,9 +385,11 @@ function downLoadReportFile() {
     pieImg: pieImg,
     scatterImg: scatterImg,
     tableData: JSON.parse(JSON.stringify(shiftsStaticData.value)),
-    comparisonData: JSON.parse(JSON.stringify(comparisonTableData))
+    comparisonData: JSON.parse(JSON.stringify(comparisonTableData)),
+    replayChartImages: replayChartImages
   }
   window.api.postReportMessage(obj)
+  store.setLoading(false)
 }
 
 async function downLoadReport() {
