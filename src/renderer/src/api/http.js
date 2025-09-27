@@ -75,6 +75,15 @@ const http = {
       data: formData
     }
     return request(config)
+  },
+  postFormData(url, formData) {
+    const config = {
+      headers: { 'Content-type': 'multipart/form-data' },
+      method: 'post',
+      url: url,
+      data: formData
+    }
+    return request(config)
   }
 }
 
