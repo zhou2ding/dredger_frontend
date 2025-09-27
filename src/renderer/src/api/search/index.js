@@ -151,6 +151,15 @@ function openFileLocation(path) {
   return http.post('/v1/files/open-location', { path })
 }
 
+/**
+ * [新增] 获取传感器历史回放数据
+ * @param params {{ shipName: string }}
+ * @returns {Promise<axios.AxiosResponse<any>>}
+ */
+function getPlaybackData(params) {
+  return http.get('/v1/data/playback', params)
+}
+
 export default {
   uploadFile,
   getShiftsStatistics,
@@ -169,5 +178,6 @@ export default {
   runDemo,
   getLatestResults,
   serveFile,
-  openFileLocation
+  openFileLocation,
+  getPlaybackData
 }

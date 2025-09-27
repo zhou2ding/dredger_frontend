@@ -19,7 +19,7 @@ const routes = [
       {
         path: '/sensor',
         name: 'Sensor',
-        component: () => import('../views/sensor/Index.vue')
+        component: () => import('../views/sensor/SensorPlayback.vue')
       }
     ]
   }

@@ -81,7 +81,7 @@ async function handleGenerate(type) {
 
   const loadingInstance = ElLoading.service({
     lock: true,
-    text: '正在玩命计算中，请稍候...',
+    text: '正在计算中，请稍候...',
     background: 'rgba(0, 0, 0, 0.7)'
   })
   const startTime = Date.now()
