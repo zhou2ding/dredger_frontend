@@ -5,15 +5,19 @@ import * as echarts from 'echarts'
 import { ElMessage } from 'element-plus'
 import 'element-plus/dist/index.css'
 
-// --- State Management ---
+// --- 状态管理 ---
 const shipName = ref('华安龙(8527船型)')
-const sensorAddress = ref('')
+const sensorAddress = ref('127.0.0.1:4001') // 默认填入协议端口
 const isConnecting = ref(false)
 const isSensorConnected = ref(false)
 let websocket = null
+const MAX_HISTORY_LENGTH = 100 // 定义图表历史数据最大长度
 
-// --- Data Structure (保持UI结构，为未来做准备) ---
+// --- 数据结构 ---
+// 新增 actualVacuum 和 estimatedVacuum
 const sensorData = reactive({
+  actualVacuum: { value: null, history: [], unit: 'kPa' },
+  estimatedVacuum: { value: null, history: [], unit: 'kPa' },
   flowRate: { value: null, history: [], unit: 'm³/h' },
   concentration: { value: null, history: [], unit: '%' },
   productionRate: { value: null, history: [], unit: 'm³/h' },
@@ -28,8 +32,14 @@ const sensorData = reactive({
   gpsSpeed: { value: null, history: [], unit: '节' }
 })
 
+// 分离第一排和第二排的数据键
+const primaryDataKeys = ['actualVacuum', 'estimatedVacuum']
+const secondaryDataKeys = Object.keys(sensorData).filter((key) => !primaryDataKeys.includes(key))
+
 // 显示名称映射
 const displayNames = {
+  actualVacuum: '实际真空度',
+  estimatedVacuum: '预估真空度',
   flowRate: '流量',
   concentration: '浓度',
   productionRate: '小时产量',
@@ -58,10 +68,27 @@ const initChart = (key) => {
 
 const setChartOption = (key) => {
   if (!charts[key]) return
+  const isPrimary = primaryDataKeys.includes(key)
   const option = {
-    grid: { left: '15%', right: '5%', top: '20%', bottom: '15%' },
+    grid: {
+      left: isPrimary ? '12%' : '18%',
+      right: '5%',
+      top: '15%',
+      bottom: '15%'
+    },
     xAxis: { type: 'category', show: false },
-    yAxis: { type: 'value', axisLabel: { formatter: `{value} ${sensorData[key].unit || ''}` } },
+    yAxis: {
+      type: 'value',
+      axisLabel: {
+        formatter: `{value}`,
+        fontSize: isPrimary ? 14 : 10
+      },
+      splitLine: {
+        lineStyle: {
+          type: 'dashed'
+        }
+      }
+    },
     series: [
       {
         name: key,
@@ -74,10 +101,10 @@ const setChartOption = (key) => {
     ],
     animation: false
   }
-  charts[key].setOption(option)
+  charts[key].setOption(option, true) // 使用 notMerge: true 确保配置干净
 }
 
-// --- Connection Logic ---
+// --- 连接逻辑 ---
 const connectSensor = () => {
   if (isConnecting.value || isSensorConnected.value) return
   if (!sensorAddress.value) {
@@ -91,41 +118,74 @@ const connectSensor = () => {
   ElMessage.info(`正在连接传感器...`)
 
   websocket.onopen = () => {
-    // 重要：将用户填写的地址发送给后端
+    // 将用户填写的地址发送给后端，由后端去建立TCP连接
     websocket.send(sensorAddress.value)
   }
 
-  // 后端在当前阶段不会主动发消息，但可以接收一次性的连接结果消息
+  // 修改 onmessage 以处理持续的数据流
   websocket.onmessage = (event) => {
     const message = event.data
+
+    // 首次连接成功的消息处理
+    if (message === '传感器连接成功' && !isSensorConnected.value) {
+      isConnecting.value = false
+      isSensorConnected.value = true
+      ElMessage.success(message)
+      return
+    }
+
+    // 连接失败的消息处理
     if (message.startsWith('Error:')) {
       isConnecting.value = false
       isSensorConnected.value = false
       ElMessage.error(`连接传感器失败: ${message.replace('Error: ', '')}`)
       websocket.close()
-    } else {
-      isConnecting.value = false
-      isSensorConnected.value = true
-      ElMessage.success(message)
+      return
+    }
+
+    // 接收并处理传感器数据
+    try {
+      const data = JSON.parse(message)
+      // 遍历接收到的数据，更新UI
+      for (const key in data) {
+        if (sensorData[key]) {
+          const newValue = parseFloat(data[key].toFixed(2)) // 保留两位小数
+          sensorData[key].value = newValue
+
+          // 更新历史数据
+          sensorData[key].history.push(newValue)
+          if (sensorData[key].history.length > MAX_HISTORY_LENGTH) {
+            sensorData[key].history.shift() // 移除最老的数据
+          }
+
+          // 更新图表
+          if (charts[key]) {
+            setChartOption(key)
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Failed to parse sensor data:', error)
     }
   }
 
   websocket.onclose = () => {
+    if (isSensorConnected.value) {
+      ElMessage.info('与服务器的连接已断开。')
+    }
     isConnecting.value = false
     isSensorConnected.value = false
     websocket = null
-    if (isSensorConnected.value) {
-      // 只有在曾经成功连接过的情况下才提示
-      ElMessage.info('连接已断开。')
-    }
   }
 
   websocket.onerror = (error) => {
+    if (!isSensorConnected.value) {
+      ElMessage.error('连接后端服务失败，请检查服务是否开启！')
+    }
     isConnecting.value = false
     isSensorConnected.value = false
     websocket = null
     console.error('Connection Error:', error)
-    ElMessage.error('连接后端服务失败，请检查服务是否开启！')
   }
 }
 
@@ -135,7 +195,7 @@ const disconnectSensor = () => {
   }
 }
 
-// --- Lifecycle Hooks ---
+// --- 生命周期钩子 ---
 onMounted(() => {
   nextTick(() => {
     for (const key in sensorData) {
@@ -189,11 +249,12 @@ onUnmounted(() => {
     </div>
 
     <div class="content">
-      <div class="data-cards">
-        <div v-for="(data, key) in sensorData" :key="key" class="data-card">
+      <div class="primary-data-cards">
+        <div v-for="key in primaryDataKeys" :key="key" class="data-card primary">
           <div class="card-title">{{ displayNames[key] }}</div>
           <div class="card-value">
-            {{ data.value !== null ? data.value : '--' }} <span class="unit">{{ data.unit }}</span>
+            {{ sensorData[key].value !== null ? sensorData[key].value : '--' }}
+            <span class="unit">{{ sensorData[key].unit }}</span>
           </div>
           <div
             :ref="
@@ -206,38 +267,29 @@ onUnmounted(() => {
         </div>
       </div>
 
-      <div class="raw-data-table">
-        <h3>最新原始数据</h3>
-        <el-table
-          :data="[sensorData]"
-          style="width: 100%"
-          max-height="350"
-          stripe
-          border
-          empty-text="等待连接并接收数据..."
-        >
-          <el-table-column
-            v-for="(data, key) in sensorData"
-            :key="key"
-            :prop="key"
-            :label="`${displayNames[key]} (${data.unit})`"
-            min-width="180"
-            align="center"
-          >
-            <template #default="{ row }">
-              <span style="font-weight: bold; color: #409eff">
-                {{ row[key].value !== null ? row[key].value : '--' }}
-              </span>
-            </template>
-          </el-table-column>
-        </el-table>
+      <div class="secondary-data-cards">
+        <div v-for="key in secondaryDataKeys" :key="key" class="data-card secondary">
+          <div class="card-title">{{ displayNames[key] }}</div>
+          <div class="card-value">
+            {{ sensorData[key].value !== null ? sensorData[key].value : '--' }}
+            <span class="unit">{{ sensorData[key].unit }}</span>
+          </div>
+          <div
+            :ref="
+              (el) => {
+                if (el) chartRefs[key] = el
+              }
+            "
+            class="card-chart"
+          ></div>
+        </div>
       </div>
     </div>
   </div>
 </template>
 
 <style scoped>
-/* 样式与原文件相同，此处省略 */
+/* 样式与原文件相同，此处省略，但为完整性添加一些关键调整 */
 .sensor-index {
   width: 100%;
   height: 100%;
@@ -259,8 +311,6 @@ onUnmounted(() => {
   font-size: 16px;
   color: #333;
   margin-right: 20px;
-  display: flex;
-  align-items: center;
 }
 
 .ship-name {
@@ -272,7 +322,6 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 10px;
-  flex-wrap: wrap;
 }
 
 .status-indicator {
@@ -280,7 +329,6 @@ onUnmounted(() => {
   height: 12px;
   border-radius: 50%;
   background-color: #f56c6c;
-  flex-shrink: 0;
 }
 
 .status-indicator.connected {
@@ -290,7 +338,6 @@ onUnmounted(() => {
 .status-text {
   font-size: 16px;
   color: #333;
-  flex-shrink: 0;
 }
 
 .content {
@@ -298,63 +345,78 @@ onUnmounted(() => {
   overflow-y: auto;
 }
 
-.data-cards {
+/* 新增的布局容器 */
+.primary-data-cards {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  grid-template-columns: repeat(2, 1fr); /* 一行两列 */
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+.secondary-data-cards {
+  display: grid;
+  /* 适配不同屏幕宽度，每行最少2个，最多6个 */
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 20px;
 }
 
 .data-card {
   background-color: #ffffff;
   border-radius: 8px;
-  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
-  padding: 20px;
+  box-shadow: 0 2px rgba(0, 0, 0, 0.1);
+  padding: 15px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  position: relative;
+}
+
+/* 主要数据显示卡片样式 */
+.data-card.primary {
+  padding: 25px;
+}
+.data-card.primary .card-title {
+  font-size: 22px;
+}
+.data-card.primary .card-value {
+  font-size: 48px;
+}
+.data-card.primary .card-chart {
+  height: 180px;
+}
+
+/* 次要数据显示卡片样式 */
+.data-card.secondary .card-title {
+  font-size: 16px;
+}
+.data-card.secondary .card-value {
+  font-size: 28px;
+}
+.data-card.secondary .card-chart {
+  height: 120px;
 }
 
 .card-title {
-  font-size: 18px;
   font-weight: bold;
   color: #304156;
   margin-bottom: 10px;
 }
 
 .card-value {
-  font-size: 36px;
   font-weight: bold;
   color: #409eff;
-  margin-bottom: 15px;
+  margin-bottom: 10px;
   display: flex;
   align-items: baseline;
 }
 
-.card-value .unit {
-  font-size: 18px;
+.unit {
+  font-size: 16px;
   margin-left: 5px;
   color: #606266;
 }
 
 .card-chart {
   width: 100%;
-  height: 150px;
-}
-
-.raw-data-table {
-  background-color: #ffffff;
-  border-radius: 8px;
-  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
-  padding: 20px;
-  margin-top: 20px;
-}
-
-.raw-data-table h3 {
-  margin-top: 0;
-  margin-bottom: 15px;
-  color: #304156;
-  font-size: 20px;
 }
 
 .connButton {
