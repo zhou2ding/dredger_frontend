@@ -1,5 +1,15 @@
 <script setup>
-import { DataAnalysis, Grid, Cpu, Fold, Expand } from '@element-plus/icons-vue'
+// 导入需要的图标，这里我们为传感器子菜单添加一个新的 Menu 图标，并为新页面添加 Document 和 Setting 图标
+import {
+  DataAnalysis,
+  Grid,
+  Cpu,
+  Fold,
+  Expand,
+  Menu as IconMenu,
+  Document,
+  Setting
+} from '@element-plus/icons-vue'
 import { computed } from 'vue'
 // 从父组件接收折叠状态
 const props = defineProps({
@@ -52,17 +62,30 @@ const tooltipContent = computed(() => {
         </el-icon>
         <template #title>土质识别</template>
       </el-menu-item>
-      <el-menu-item index="/sensor">
-        <el-icon>
-          <Cpu />
-        </el-icon>
-        <template #title>传感器</template>
-      </el-menu-item>
+
+      <el-sub-menu index="/sensor">
+        <template #title>
+          <el-icon>
+            <Cpu />
+          </el-icon>
+          <span>传感器</span>
+        </template>
+        <el-menu-item index="/sensor/realtime">
+          <template #title>实时数据</template>
+        </el-menu-item>
+        <el-menu-item index="/sensor/api">
+          <template #title>接口数据</template>
+        </el-menu-item>
+        <el-menu-item index="/sensor/history">
+          <template #title>历史数据</template>
+        </el-menu-item>
+      </el-sub-menu>
     </el-menu>
   </div>
 </template>
 
 <style scoped>
+/* 样式部分保持不变 */
 .side-menu-container {
   height: 100%;
   background-color: #304156;
