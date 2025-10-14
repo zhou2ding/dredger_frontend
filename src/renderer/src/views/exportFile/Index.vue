@@ -1,5 +1,5 @@
 <script setup>
-import { ref, nextTick, computed, onMounted, onUnmounted } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import { dayjs } from 'element-plus'
 
 // 定义一个变量用于保存注销函数
@@ -26,7 +26,10 @@ const exportInfo = ref({
   startTime: '',
   endTime: '',
   pieImg: '',
-  scatterImg: '',
+  // ====================== 核心修改点 1: 数据结构变更 ======================
+  // 将 scatterImg 替换为 optimalParamImages 数组
+  optimalParamImages: [],
+  // ======================================================================
   tableData: [],
   comparisonData: {
     theory: null,
@@ -43,7 +46,6 @@ const comparisonTable = computed(() => {
     return { columns: [], rows: [] }
   }
 
-  // 1. 定义表格的列
   const columns = [
     { prop: 'paramName', label: '参数名称', width: '150' },
     { prop: 'unit', label: '单位', width: '100' },
@@ -66,7 +68,6 @@ const comparisonTable = computed(() => {
     })
   })
 
-  // 2. 定义参数行和单位 (key 对应后端 ParameterStats 结构体的字段名)
   const paramKeys = {
     flow: '流量 (m³/h)',
     concentration: '浓度 (%)',
@@ -78,16 +79,13 @@ const comparisonTable = computed(() => {
     vacuumDegree: '真空度 (kPa)'
   }
 
-  // 3. 构造表格行数据
   const rows = Object.keys(paramKeys).map((key) => {
     const [name, unit] = paramKeys[key].split(' (')
     const rowData = {
       paramName: name,
       unit: unit ? `(${unit}` : '',
-      // 从理论值中取值
       theoretical: data.theory ? data.theory[key] : 'N/A'
     }
-    // 从每个班组的实际值中取值 (我们这里对比的是平均值 Average)
     data.shifts.forEach((shift) => {
       rowData[shift.shiftName] = shift.parameters[key]?.average ?? 'N/A'
     })
@@ -96,6 +94,14 @@ const comparisonTable = computed(() => {
 
   return { columns, rows }
 })
+
+// 新增：用于格式化土质数组的方法
+const formatSoilTypes = (row, column, cellValue) => {
+  if (Array.isArray(cellValue) && cellValue.length > 0) {
+    return cellValue.join(', ')
+  }
+  return '—'
+}
 </script>
 
 <template>
@@ -117,16 +123,21 @@ const comparisonTable = computed(() => {
       <div class="title">班组统计表格</div>
       <div class="info">
         <el-table
-          :data="exportInfo.tableData"
           :border="true"
+          :data="exportInfo.tableData"
+          class="table"
           stripe
           style="width: 100%"
-          class="table"
         >
           <el-table-column label="班组" prop="shiftName"></el-table-column>
-          <el-table-column sortable label="施工时长(min)" prop="workDuration"></el-table-column>
-          <el-table-column sortable label="班组总产量(m³)" prop="totalProduction"></el-table-column>
-          <el-table-column sortable label="总能耗(kW·h)" prop="totalEnergy"></el-table-column>
+          <el-table-column label="施工时长(min)" prop="workDuration" sortable></el-table-column>
+          <el-table-column label="班组总产量(m³)" prop="totalProduction" sortable></el-table-column>
+          <el-table-column label="总能耗(kW·h)" prop="totalEnergy" sortable></el-table-column>
+          <el-table-column
+            :formatter="formatSoilTypes"
+            label="土质"
+            prop="soilTypes"
+          ></el-table-column>
         </el-table>
       </div>
     </div>
@@ -134,44 +145,46 @@ const comparisonTable = computed(() => {
     <div class="floor-1">
       <div class="title">班组统计信息</div>
       <div class="info">
-        <img class="img" :src="exportInfo.pieImg" alt="" />
-      </div>
-    </div>
-
-    <div class="floor-1">
-      <div class="title">最优班组施工参数</div>
-      <div class="info">
-        <img class="img" :src="exportInfo.scatterImg" alt="" />
+        <img :src="exportInfo.pieImg" alt="" class="img" />
       </div>
     </div>
 
     <div class="floor-1 page-break">
+      <div class="title">最优班组施工参数</div>
+      <div class="info">
+        <div v-for="chart in exportInfo.optimalParamImages" :key="chart.title" class="chart-item">
+          <div class="sub-title">{{ chart.title }}</div>
+          <img :src="chart.src" alt="" class="img" />
+        </div>
+      </div>
+    </div>
+    <div class="floor-1 page-break">
       <div class="title">班组参数与理论值对比</div>
       <div class="info">
         <el-table
-          :data="comparisonTable.rows"
           :border="true"
+          :data="comparisonTable.rows"
+          class="table"
           stripe
           style="width: 100%"
-          class="table"
         >
           <el-table-column
             v-for="col in comparisonTable.columns"
             :key="col.prop"
-            :prop="col.prop"
             :label="col.label"
+            :prop="col.prop"
             :width="col.width"
           ></el-table-column>
         </el-table>
       </div>
     </div>
 
-    <div class="floor-1 page-break" v-if="exportInfo.replayChartImages.length > 0">
+    <div v-if="exportInfo.replayChartImages.length > 0" class="floor-1 page-break">
       <div class="title">历史数据回放</div>
       <div class="info">
         <div v-for="chart in exportInfo.replayChartImages" :key="chart.title" class="chart-item">
           <div class="sub-title">{{ chart.title }}</div>
-          <img class="img" :src="chart.src" alt="" />
+          <img :src="chart.src" alt="" class="img" />
         </div>
       </div>
     </div>

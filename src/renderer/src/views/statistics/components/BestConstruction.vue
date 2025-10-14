@@ -1,6 +1,6 @@
 <script setup>
 import Title from '../../../components/Title.vue'
-import { ref, onMounted, watch } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import * as echarts from 'echarts'
 import { useResizeObserver } from '@vueuse/core'
 
@@ -89,14 +89,12 @@ const CONST = {
 const chartDom = ref(null)
 
 function setOption() {
-  // 动态计算布局
   const paramKeys = Object.keys(CONST)
   const totalParams = paramKeys.length
 
-  // 定义图表绘制区域的边界
-  const chartAreaTop = -5 // 顶部起始位置（百分比）
-  const chartAreaBottom = 80 // 底部结束位置（百分比），给图例留出空间
-  const availableHeight = chartAreaBottom - chartAreaTop // 可用于绘制坐标轴的总高度
+  const chartAreaTop = -5
+  const chartAreaBottom = 80
+  const availableHeight = chartAreaBottom - chartAreaTop
 
   let option = {
     legend: {
@@ -108,27 +106,22 @@ function setOption() {
         return `${value.seriesName}：${value.data[0]}`
       }
     },
-    // 初始化空的数组，将在循环中动态填充
     grid: [],
     xAxis: [],
     yAxis: [],
     series: []
   }
 
-  // 使用 forEach 循环，方便获取索引
   paramKeys.forEach((key, index) => {
-    // 1. 动态计算每个 grid 的 top 位置
     const gridTop = chartAreaTop + (index / totalParams) * availableHeight
 
-    // 2. 将计算好的 grid 配置推进数组
     option.grid.push({
       left: '17%',
       top: `${gridTop}%`,
       width: '75%',
-      height: '10%' // 高度可以统一，因为位置由 top 决定
+      height: '10%'
     })
 
-    // 3. 创建 x 轴配置
     option.xAxis.push({
       gridIndex: index,
       min: bestParam[key].min,
@@ -141,7 +134,6 @@ function setOption() {
       nameLocation: 'start'
     })
 
-    // 4. 创建 y 轴配置
     option.yAxis.push({
       gridIndex: index,
       min: 0,
@@ -150,7 +142,6 @@ function setOption() {
       axisLine: { show: false }
     })
 
-    // 5. 创建 series 配置
     option.series.push({
       name: CONST[key],
       type: 'scatter',
@@ -164,7 +155,7 @@ function setOption() {
           show: true,
           position: 'end',
           color: '#0015ff',
-          distance: [2, 0],
+          offset: [-20, -5],
           formatter: (param) => {
             return param.name
           }
@@ -202,16 +193,16 @@ watch(
   () => bestParam,
   () => {
     mychart.setOption(setOption())
-  }
+  },
+  { deep: true }
 )
 
-// 导出图表为图片
 const exportChartAsImage = () => {
   if (mychart) {
     return mychart.getDataURL({
-      type: 'png', // 可以是 'png' 或 'jpeg'
-      pixelRatio: 2, // 设置图像的像素比例
-      backgroundColor: '#fff' // 背景颜色
+      type: 'png',
+      pixelRatio: 2,
+      backgroundColor: '#fff'
     })
   }
   return null
@@ -223,7 +214,10 @@ defineExpose({
 
 <template>
   <div class="best-construction">
-    <Title title="最优班组施工参数"></Title>
+    <div class="title-container">
+      <Title title="最优班组施工参数"></Title>
+      <slot name="title-right"></slot>
+    </div>
     <div v-if="shiftName" class="chart-title">{{ shiftName }}</div>
     <div ref="chartDom" class="chart"></div>
   </div>
@@ -235,19 +229,26 @@ defineExpose({
   display: flex;
   flex-direction: column;
   position: relative;
+}
 
-  .chart-title {
-    position: absolute;
-    top: 20px;
-    left: 50%;
-    font-size: 18px;
-    font-weight: bold;
-    color: #333;
-  }
+.title-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
 
-  .chart {
-    width: 100%;
-    flex: 1;
-  }
+.chart-title {
+  position: absolute;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 18px;
+  font-weight: bold;
+  color: #333;
+}
+
+.chart {
+  width: 100%;
+  flex: 1;
 }
 </style>

@@ -4,10 +4,12 @@ import StatisticsTable from './components/StatisticTable.vue'
 import BestConstruction from './components/BestConstruction.vue'
 import StatisticPie from './components/StatisticPie.vue'
 import ReplayData from './components/ReplayData.vue'
-import { ref, onMounted, onUnmounted } from 'vue'
+// Import nextTick from vue
+import { nextTick, onMounted, onUnmounted, ref, watch } from 'vue' // 引入 watch
 import searchApi from '../../api/search/index'
 import { dayjs } from 'element-plus'
 import * as echarts from 'echarts'
+import { useLoadingStore } from '../../store/loadingStore'
 
 // 定义一个变量，用来持有从 aip.getDownLoadSingle 返回的“注销函数”
 let unregisterDownLoadSingle = null
@@ -37,14 +39,18 @@ const searchCondition = ref({
 })
 
 const time = ref(new Date().getTime())
-import { useLoadingStore } from '../../store/loadingStore'
 
 const store = useLoadingStore()
 
 const shiftsStaticData = ref([]) //班组统计表格几饼图数据数据
 
-const bestParamData = ref({}) //最优班组施工参数
+// ====================== 最优参数相关状态重构 ======================
+const bestParamData = ref({}) // 改为存储按土质分的整个对象
+const soilTypesForOptimal = ref([]) // 新增：存储所有可选的土质
+const selectedSoilType = ref('') // 新增：存储当前选择的土质
+
 const paramObj = ref({
+  // 这个结构保持不变，用于传递给子组件
   shiftName: '',
   parameters: {
     horizontalSpeed: {
@@ -55,41 +61,11 @@ const paramObj = ref({
       maxProductionParam: 0,
       warning: ''
     },
-    carriageTravel: {
-      min: 0,
-      max: 10,
-      average: 0,
-      variance: 0,
-      maxProductionParam: 0
-    },
-    cutterDepth: {
-      min: 0,
-      max: 10,
-      average: 0,
-      variance: 0,
-      maxProductionParam: 0
-    },
-    sPumpRpm: {
-      min: 0,
-      max: 10,
-      average: 0,
-      variance: 0,
-      maxProductionParam: 0
-    },
-    concentration: {
-      min: 0,
-      max: 10,
-      average: 0,
-      variance: 0,
-      maxProductionParam: 0
-    },
-    flow: {
-      min: 0,
-      max: 10,
-      average: 0,
-      variance: 0,
-      maxProductionParam: 0
-    },
+    carriageTravel: { min: 0, max: 10, average: 0, variance: 0, maxProductionParam: 0 },
+    cutterDepth: { min: 0, max: 10, average: 0, variance: 0, maxProductionParam: 0 },
+    sPumpRpm: { min: 0, max: 10, average: 0, variance: 0, maxProductionParam: 0 },
+    concentration: { min: 0, max: 10, average: 0, variance: 0, maxProductionParam: 0 },
+    flow: { min: 0, max: 10, average: 0, variance: 0, maxProductionParam: 0 },
     boosterPumpDischargePressure: {
       min: 0,
       max: 10,
@@ -97,15 +73,11 @@ const paramObj = ref({
       variance: 0,
       maxProductionParam: 0
     },
-    vacuumDegree: {
-      min: 0,
-      max: 10,
-      average: 0,
-      variance: 0,
-      maxProductionParam: 0
-    }
+    vacuumDegree: { min: 0, max: 10, average: 0, variance: 0, maxProductionParam: 0 }
   }
 })
+// ===============================================================
+
 const columnList = ref([]) //表格列名
 const dataType = ref(1)
 
@@ -134,95 +106,64 @@ function getColumnList(shipName) {
 }
 
 /**
- * 查询最优班组数据
+ * [已修改] 查询最优班组数据
  */
 function getOptimalShifts() {
   return searchApi.getOptimalShifts(searchCondition.value).then((res) => {
-    const obj = {
-      shiftName: '',
-      parameters: {
-        flow: {
-          min: 0,
-          max: 10,
-          average: 0,
-          variance: 0,
-          maxProductionParam: 0
-        },
-        concentration: {
-          min: 0,
-          max: 10,
-          average: 0,
-          variance: 0,
-          maxProductionParam: 0
-        },
-        sPumpRpm: {
-          min: 0,
-          max: 10,
-          average: 0,
-          variance: 0,
-          maxProductionParam: 0
-        },
-        cutterDepth: {
-          min: 0,
-          max: 10,
-          average: 0,
-          variance: 0,
-          maxProductionParam: 0
-        },
-        carriageTravel: {
-          min: 0,
-          max: 10,
-          average: 0,
-          variance: 0,
-          maxProductionParam: 0
-        },
-        horizontalSpeed: {
-          min: 0,
-          max: 10,
-          average: 0,
-          variance: 0,
-          maxProductionParam: 0,
-          warning: ''
-        },
-        boosterPumpDischargePressure: {
-          min: 0,
-          max: 10,
-          average: 0,
-          variance: 0,
-          maxProductionParam: 0
-        },
-        vacuumDegree: {
-          min: 0,
-          max: 10,
-          average: 0,
-          variance: 0,
-          maxProductionParam: 0
-        }
+    // 1. 重置状态
+    bestParamData.value = {}
+    soilTypesForOptimal.value = []
+    selectedSoilType.value = ''
+
+    const optimalData = res.data?.optimalShiftsBySoil
+    if (optimalData && Object.keys(optimalData).length > 0) {
+      // 2. 存储从API获取的完整数据
+      bestParamData.value = optimalData
+      // 3. 提取所有土质类型作为下拉框选项
+      soilTypesForOptimal.value = Object.keys(optimalData)
+      // 4. 默认选中第一个土质
+      if (soilTypesForOptimal.value.length > 0) {
+        selectedSoilType.value = soilTypesForOptimal.value[0]
       }
-    }
-    if (res.data && res.data.maxProductionShift && res.data.minEnergyShift) {
-      bestParamData.value = res.data
     } else {
-      bestParamData.value = {
-        maxProductionShift: JSON.parse(JSON.stringify(obj)),
-        minEnergyShift: JSON.parse(JSON.stringify(obj))
-      }
+      // 处理没有数据的情况，防止页面出错
+      paramObj.value = JSON.parse(JSON.stringify(paramObj.value)) //
     }
-    if (dataType.value < 3) {
-      paramObj.value = bestParamData.value.maxProductionShift
-    } else {
-      paramObj.value = bestParamData.value.minEnergyShift
-    }
+    // `paramObj` 的更新将由 watch 自动触发
   })
 }
 
-function updateDateType() {
+/**
+ * [新增] 更新最优参数显示
+ * 这个函数会根据当前选择的土质和数据类型（最大产量/最小能耗）来更新 paramObj
+ */
+function updateBestParamDisplay() {
+  if (!selectedSoilType.value || !bestParamData.value[selectedSoilType.value]) {
+    // 如果没有选中的土质或该土质没有数据，则清空图表
+    paramObj.value = {
+      shiftName: '',
+      parameters: {
+        // ... 重置为初始空状态 ...
+      }
+    }
+    return
+  }
+
+  const dataForSoil = bestParamData.value[selectedSoilType.value]
+
   if (dataType.value < 3) {
-    paramObj.value = bestParamData.value.maxProductionShift
+    // 最大产量
+    paramObj.value = dataForSoil.maxProductionShift || paramObj.value
   } else {
-    paramObj.value = bestParamData.value.minEnergyShift
+    // 最小能耗
+    paramObj.value = dataForSoil.minEnergyShift || paramObj.value
   }
 }
+
+// [修改] 使用 watch 替代 updateDateType 函数，逻辑更清晰
+watch([dataType, selectedSoilType], () => {
+  updateBestParamDisplay()
+})
 
 function getAllShiftParameters() {
   return searchApi.getAllShiftParameters(searchCondition.value).then((res) => {
@@ -268,9 +209,7 @@ const theoryOptimalData = ref([]) // 理论最优施工参数
  */
 function generateReplayChartImage(data, name, unit) {
   const option = {
-    // ================== 新增此行，禁用动画 ==================
     animation: false,
-    // ====================================================
     tooltip: {
       trigger: 'axis'
     },
@@ -312,7 +251,6 @@ function generateReplayChartImage(data, name, unit) {
     ]
   }
 
-  // 使用 echarts.init 创建一个不显示的图表实例来生成图片
   const chartContainer = document.createElement('div')
   chartContainer.style.width = '800px'
   chartContainer.style.height = '400px'
@@ -329,25 +267,63 @@ function generateReplayChartImage(data, name, unit) {
 async function downLoadReportFile() {
   store.setLoading(true)
   const pieImg = pieChart.value.exportChartAsImage()
-  const scatterImg = bestChart.value.exportChartAsImage()
 
-  // === [新增] 获取历史数据回放图表 ===
+  const optimalParamImages = []
+  const originalSoilType = selectedSoilType.value
+  const originalDataType = dataType.value
+
+  // 暂时移除watch，避免不必要的触发。更简洁的方式是不需要手动移除watch，
+  // 因为我们的循环是同步更改状态，然后异步等待。
+  // 我们只需要确保在截图前有足够的渲染时间。
+
+  for (const soilType of soilTypesForOptimal.value) {
+    selectedSoilType.value = soilType
+
+    for (const type of [1, 3]) {
+      // 1: 最大产量, 3: 最小能耗
+      dataType.value = type
+
+      // 第一次 nextTick: 确保Vue的响应式系统已经将新的props传递给子组件
+      await nextTick()
+      // 这会触发子组件中的 watch，从而调用 mychart.setOption()
+
+      // 【核心修改】
+      // 添加一个短暂的延时，给 ECharts 足够的时间来完成重绘和布局计算。
+      // 这是解决 markLine 标签位置问题的关键。
+      await new Promise((resolve) => setTimeout(resolve, 1000)) // 等待100毫秒
+
+      const chartImage = bestChart.value.exportChartAsImage()
+      const shiftName = paramObj.value.shiftName
+
+      if (chartImage) {
+        optimalParamImages.push({
+          title: `${soilType} - ${type === 1 ? '最大产量' : '最小能耗'} (${shiftName})`,
+          src: chartImage
+        })
+      }
+    }
+  }
+
+  // 恢复循环之前的状态，让界面显示回到用户的原始选择
+  selectedSoilType.value = originalSoilType
+  dataType.value = originalDataType
+  await nextTick() // 确保UI更新回原始状态
+
+  // ... (省略后面生成其他图片和发送数据的代码，它们是正确的，无需修改)
+  // ... (后面的 replayChartImages 和 comparisonTableData 逻辑保持不变)
+
   const replayChartImages = []
-  // 1. 定义需要导出的列的中文名
   const requiredColumns = ['流速', '密度', '产量', '小时产量率', '水下泵排出压力', '升压泵排出压力']
-  // 2. 从 columnList 中筛选出这些列的完整信息
   const targetColumns = columnList.value.filter((col) =>
     requiredColumns.includes(col.columnChineseName)
   )
 
   if (targetColumns.length > 0) {
-    // 3. 并行获取所有需要的数据
     const dataPromises = targetColumns.map((col) =>
       searchApi.getReplayData(col.columnName, searchCondition.value)
     )
     const results = await Promise.all(dataPromises)
 
-    // 4. 为获取到的每组数据生成图表图片
     results.forEach((res, index) => {
       const rawData = res.data ?? []
       const chartData = rawData.map((item) => [item.timestamp, item.value])
@@ -363,18 +339,13 @@ async function downLoadReportFile() {
       })
     })
   }
-  // === [新增] 逻辑结束 ===
 
-  // === 构造新的对比表格数据 ===
   const comparisonTableData = {
-    // 理论参数
     theory: theoryOptimalData.value,
-    // 各班组实际参数
     shifts: allShiftsParamsData.value,
-    // 最优班组名称，用于标注
     optimalShiftNames: {
-      maxProduction: bestParamData.value?.maxProductionShift?.shiftName,
-      minEnergy: bestParamData.value?.minEnergyShift?.shiftName
+      maxProduction: bestParamData.value[selectedSoilType.value]?.maxProductionShift?.shiftName,
+      minEnergy: bestParamData.value[selectedSoilType.value]?.minEnergyShift?.shiftName
     }
   }
 
@@ -383,7 +354,7 @@ async function downLoadReportFile() {
     startTime: JSON.parse(JSON.stringify(searchCondition.value.startDate)),
     endTime: JSON.parse(JSON.stringify(searchCondition.value.endDate)),
     pieImg: pieImg,
-    scatterImg: scatterImg,
+    optimalParamImages: optimalParamImages,
     tableData: JSON.parse(JSON.stringify(shiftsStaticData.value)),
     comparisonData: JSON.parse(JSON.stringify(comparisonTableData)),
     replayChartImages: replayChartImages
@@ -398,7 +369,6 @@ async function downLoadReport() {
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  // 船名+施工日期段统计分析dayjs(exportInfo.startTime).format('YYYY-MM-DD')
   a.download =
     searchCondition.value.shipName +
     dayjs(searchCondition.value.startDate).format('YYYY-MM-DD-HH-mm-ss') +
@@ -424,10 +394,31 @@ async function downLoadReport() {
         <div class="shifts-param">
           <BestConstruction
             ref="bestChart"
-            :time="time"
             :best-param="paramObj.parameters"
             :shift-name="paramObj.shiftName"
-          ></BestConstruction>
+            :time="time"
+          >
+            <template #title-right>
+              <!-- 将整个选择器包裹在一个 div 中，并设置宽度和 flex -->
+              <div class="soil-type-wrapper">
+                <span class="selector-label">土质:</span>
+                <!-- 直接在 el-select 上设置宽度 -->
+                <el-select
+                  v-model="selectedSoilType"
+                  placeholder="选择土质"
+                  size="small"
+                  style="width: 180px"
+                >
+                  <el-option
+                    v-for="item in soilTypesForOptimal"
+                    :key="item"
+                    :label="item"
+                    :value="item"
+                  />
+                </el-select>
+              </div>
+            </template>
+          </BestConstruction>
         </div>
       </div>
       <div class="floor floor-2">
@@ -437,13 +428,12 @@ async function downLoadReport() {
             v-model="dataType"
             :shifts-static-data="shiftsStaticData"
             :time="time"
-            @updateDateType="updateDateType"
           ></StatisticPie>
         </div>
         <div class="history-data">
           <ReplayData
-            :searchCondition="searchCondition"
             :column-list="columnList"
+            :search-condition="searchCondition"
             :time="time"
           ></ReplayData>
         </div>
@@ -458,54 +448,72 @@ async function downLoadReport() {
   height: 100%;
   display: flex;
   flex-direction: column;
-
-  .header {
-    width: 100%;
-    height: 76px;
-  }
-
-  .content {
-    flex: 1;
-    padding: 0 20px;
-    display: flex;
-    flex-direction: column;
-
-    .floor {
-      display: flex;
-      width: 100%;
-    }
-
-    .floor-1 {
-      height: 460px;
-
-      .statistics-table {
-        padding: 0 20px;
-        width: 50%;
-        height: 300px;
-      }
-
-      .shifts-param {
-        padding: 0 20px;
-        width: 50%;
-        height: 460px;
-      }
-    }
-
-    .floor-2 {
-      height: 460px;
-
-      .shifts-time {
-        padding: 0 20px;
-        width: 50%;
-        height: 440px;
-      }
-
-      .history-data {
-        padding: 0 20px;
-        width: 50%;
-        height: 440px;
-      }
-    }
-  }
 }
+
+.header {
+  width: 100%;
+  height: 76px;
+}
+
+.content {
+  flex: 1;
+  padding: 0 20px;
+  display: flex;
+  flex-direction: column;
+}
+.floor {
+  display: flex;
+  width: 100%;
+}
+.floor-1 {
+  height: 460px;
+}
+.statistics-table {
+  padding: 0 20px;
+  width: 50%;
+  height: 300px;
+}
+.shifts-param {
+  padding: 0 20px;
+  width: 50%;
+  height: 460px;
+}
+
+.floor-2 {
+  height: 460px;
+}
+.shifts-time {
+  padding: 0 20px;
+  width: 50%;
+  height: 440px;
+}
+.history-data {
+  padding: 0 20px;
+  width: 50%;
+  height: 440px;
+}
+
+/* ====================== 土质选择器新样式 ====================== */
+/* 这个样式现在定义在 Index.vue 中，用于控制插槽内容 */
+.soil-type-wrapper {
+  display: flex;
+  align-items: center;
+  /* 可选：添加一些左边距，与标题保持距离 */
+  margin-left: 10px;
+}
+
+.selector-label {
+  margin-right: 8px;
+  font-size: 14px;
+  color: #606266;
+  white-space: nowrap;
+}
+
+/* 如果需要更精确控制 Element Plus Select，可以使用深度选择器 */
+/* ::v-deep(.el-select) {
+  width: 100%;
+} */
+
+/* 重要：移除 BestConstruction.vue 中可能存在的 .soil-type-selector 样式，
+   因为我们现在在 Index.vue 中直接控制它。 */
 </style>

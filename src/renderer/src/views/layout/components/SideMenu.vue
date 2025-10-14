@@ -56,13 +56,6 @@ const tooltipContent = computed(() => {
         </el-icon>
         <template #title>数据统计</template>
       </el-menu-item>
-      <el-menu-item index="/soil">
-        <el-icon>
-          <Grid />
-        </el-icon>
-        <template #title>土质识别</template>
-      </el-menu-item>
-
       <el-sub-menu index="/sensor">
         <template #title>
           <el-icon>
@@ -80,6 +73,12 @@ const tooltipContent = computed(() => {
           <template #title>历史数据</template>
         </el-menu-item>
       </el-sub-menu>
+      <el-menu-item index="/soil">
+        <el-icon>
+          <Grid />
+        </el-icon>
+        <template #title>土质识别</template>
+      </el-menu-item>
     </el-menu>
   </div>
 </template>
