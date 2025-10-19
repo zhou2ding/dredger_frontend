@@ -31,12 +31,6 @@ const routes = [
             component: () => import('../views/sensor/SensorPlayback.vue')
           },
           {
-            path: 'api',
-            name: 'SensorApi',
-            // 您需要创建这个组件文件: ../views/sensor/ApiData.vue
-            component: () => import('../views/sensor/ApiData.vue')
-          },
-          {
             path: 'realtime',
             name: 'SensorRealtime',
             // 您需要创建这个组件文件: ../views/sensor/RealtimeData.vue

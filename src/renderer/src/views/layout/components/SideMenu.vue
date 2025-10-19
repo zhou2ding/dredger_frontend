@@ -6,9 +6,6 @@ import {
   Cpu,
   Fold,
   Expand,
-  Menu as IconMenu,
-  Document,
-  Setting
 } from '@element-plus/icons-vue'
 import { computed } from 'vue'
 // 从父组件接收折叠状态
@@ -65,9 +62,6 @@ const tooltipContent = computed(() => {
         </template>
         <el-menu-item index="/sensor/realtime">
           <template #title>实时数据</template>
-        </el-menu-item>
-        <el-menu-item index="/sensor/api">
-          <template #title>接口数据</template>
         </el-menu-item>
         <el-menu-item index="/sensor/history">
           <template #title>历史数据</template>
