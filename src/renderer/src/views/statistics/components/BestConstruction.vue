@@ -4,7 +4,8 @@ import { onMounted, ref, watch } from 'vue'
 import * as echarts from 'echarts'
 import { useResizeObserver } from '@vueuse/core'
 
-const { bestParam, shiftName } = defineProps({
+// 增加了 shipName prop
+const { bestParam, shiftName, shipName } = defineProps({
   shiftName: {
     type: String,
     default: ''
@@ -72,6 +73,10 @@ const { bestParam, shiftName } = defineProps({
         }
       }
     }
+  },
+  shipName: {
+    type: String,
+    default: ''
   }
 })
 
@@ -216,7 +221,7 @@ defineExpose({
   <div class="best-construction">
     <div class="title-container">
       <Title title="最优班组施工参数"></Title>
-      <slot name="title-right"></slot>
+      <slot v-if="shipName.includes('敏龙')" name="title-right"></slot>
     </div>
     <div v-if="shiftName" class="chart-title">{{ shiftName }}</div>
     <div ref="chartDom" class="chart"></div>

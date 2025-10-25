@@ -276,7 +276,12 @@ async function downLoadReportFile() {
   // 因为我们的循环是同步更改状态，然后异步等待。
   // 我们只需要确保在截图前有足够的渲染时间。
 
-  for (const soilType of soilTypesForOptimal.value) {
+  // [修改] 只有敏龙才需要循环土质
+  const soilTypesToLoop = searchCondition.value.shipName.includes('敏龙')
+    ? soilTypesForOptimal.value
+    : [selectedSoilType.value] // 华安龙只使用 'default'
+
+  for (const soilType of soilTypesToLoop) {
     selectedSoilType.value = soilType
 
     for (const type of [1, 3]) {
@@ -290,14 +295,17 @@ async function downLoadReportFile() {
       // 【核心修改】
       // 添加一个短暂的延时，给 ECharts 足够的时间来完成重绘和布局计算。
       // 这是解决 markLine 标签位置问题的关键。
-      await new Promise((resolve) => setTimeout(resolve, 1000)) // 等待100毫秒
+      await new Promise((resolve) => setTimeout(resolve, 100)) // 等待100毫秒
 
       const chartImage = bestChart.value.exportChartAsImage()
       const shiftName = paramObj.value.shiftName
 
       if (chartImage) {
+        const titleSoilPart = searchCondition.value.shipName.includes('敏龙')
+          ? `${soilType} - `
+          : ''
         optimalParamImages.push({
-          title: `${soilType} - ${type === 1 ? '最大产量' : '最小能耗'} (${shiftName})`,
+          title: `${titleSoilPart}${type === 1 ? '最大产量' : '最小能耗'} (${shiftName})`,
           src: chartImage
         })
       }
@@ -340,12 +348,16 @@ async function downLoadReportFile() {
     })
   }
 
+  const optimalSoilKey = searchCondition.value.shipName.includes('敏龙')
+    ? selectedSoilType.value
+    : 'default'
+
   const comparisonTableData = {
     theory: theoryOptimalData.value,
     shifts: allShiftsParamsData.value,
     optimalShiftNames: {
-      maxProduction: bestParamData.value[selectedSoilType.value]?.maxProductionShift?.shiftName,
-      minEnergy: bestParamData.value[selectedSoilType.value]?.minEnergyShift?.shiftName
+      maxProduction: bestParamData.value[optimalSoilKey]?.maxProductionShift?.shiftName,
+      minEnergy: bestParamData.value[optimalSoilKey]?.minEnergyShift?.shiftName
     }
   }
 
@@ -389,7 +401,10 @@ async function downLoadReport() {
     <div class="content">
       <div class="floor floor-1">
         <div class="statistics-table">
-          <StatisticsTable :table-data="shiftsStaticData"></StatisticsTable>
+          <StatisticsTable
+            :table-data="shiftsStaticData"
+            :ship-name="searchCondition.shipName"
+          ></StatisticsTable>
         </div>
         <div class="shifts-param">
           <BestConstruction
@@ -397,12 +412,11 @@ async function downLoadReport() {
             :best-param="paramObj.parameters"
             :shift-name="paramObj.shiftName"
             :time="time"
+            :ship-name="searchCondition.shipName"
           >
-            <template #title-right>
-              <!-- 将整个选择器包裹在一个 div 中，并设置宽度和 flex -->
+            <template v-if="searchCondition.shipName.includes('敏龙')" #title-right>
               <div class="soil-type-wrapper">
                 <span class="selector-label">土质:</span>
-                <!-- 直接在 el-select 上设置宽度 -->
                 <el-select
                   v-model="selectedSoilType"
                   placeholder="选择土质"

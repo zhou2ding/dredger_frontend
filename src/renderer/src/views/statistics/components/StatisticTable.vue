@@ -1,10 +1,15 @@
 <script setup>
 import Title from '../../../components/Title.vue'
 
-const { tableData } = defineProps({
+// 增加了 shipName prop
+const { tableData, shipName } = defineProps({
   tableData: {
     type: Array,
     default: () => []
+  },
+  shipName: {
+    type: String,
+    default: ''
   }
 })
 
@@ -37,6 +42,7 @@ const formatSoilTypes = (row, column, cellValue) => {
         prop="totalEnergy"
       ></el-table-column>
       <el-table-column
+        v-if="shipName.includes('敏龙')"
         width="140"
         label="土质"
         prop="soilTypes"
