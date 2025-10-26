@@ -1,14 +1,18 @@
 <script setup>
 import Title from '../../../components/Title.vue'
-import { onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import * as echarts from 'echarts'
-import { useResizeObserver } from '@vueuse/core'
-
+import { useResizeObserver } from '@vueuse/core' // 增加了 shipName prop
+import { dayjs } from 'element-plus'
 // 增加了 shipName prop
-const { bestParam, shiftName, shipName } = defineProps({
+const { bestParam, shiftName, shipName, optimalTime } = defineProps({
   shiftName: {
     type: String,
     default: ''
+  },
+  optimalTime: {
+    type: Number,
+    default: 0
   },
   bestParam: {
     type: Object,
@@ -90,6 +94,13 @@ const CONST = {
   boosterPumpDischargePressure: '升压泵排出压力(bar)',
   vacuumDegree: '真空度(kPa)'
 }
+
+const formattedOptimalTime = computed(() => {
+  if (!optimalTime) {
+    return ''
+  }
+  return dayjs(optimalTime).format('YYYY-MM-DD HH:mm:ss')
+})
 
 const chartDom = ref(null)
 
@@ -223,7 +234,10 @@ defineExpose({
       <Title title="最优班组施工参数"></Title>
       <slot v-if="shipName.includes('敏龙')" name="title-right"></slot>
     </div>
-    <div v-if="shiftName" class="chart-title">{{ shiftName }}</div>
+    <div v-if="shiftName" class="chart-title">
+      {{ shiftName }}
+      <span v-if="formattedOptimalTime" class="time-display"> ({{ formattedOptimalTime }}) </span>
+    </div>
     <div ref="chartDom" class="chart"></div>
   </div>
 </template>
@@ -255,5 +269,11 @@ defineExpose({
 .chart {
   width: 100%;
   flex: 1;
+}
+.time-display {
+  font-weight: normal;
+  font-size: 0.9em; /* 比班组名称稍小一点 */
+  color: #666;
+  margin-left: 8px; /* 和班组名称拉开一点距离 */
 }
 </style>

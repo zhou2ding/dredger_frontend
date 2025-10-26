@@ -49,9 +49,10 @@ const bestParamData = ref({}) // 改为存储按土质分的整个对象
 const soilTypesForOptimal = ref([]) // 新增：存储所有可选的土质
 const selectedSoilType = ref('') // 新增：存储当前选择的土质
 
-const paramObj = ref({
-  // 这个结构保持不变，用于传递给子组件
+// [修改] 1. 定义一个常量来存储“最优参数”的初始/空状态
+const defaultParamObj = {
   shiftName: '',
+  optimalTime: 0,
   parameters: {
     horizontalSpeed: {
       min: 0,
@@ -75,7 +76,10 @@ const paramObj = ref({
     },
     vacuumDegree: { min: 0, max: 10, average: 0, variance: 0, maxProductionParam: 0 }
   }
-})
+}
+
+// [修改] 2. paramObj 的 ref 现在使用 defaultParamObj 的深拷贝进行初始化
+const paramObj = ref(JSON.parse(JSON.stringify(defaultParamObj)))
 // ===============================================================
 
 const columnList = ref([]) //表格列名
@@ -127,7 +131,8 @@ function getOptimalShifts() {
       }
     } else {
       // 处理没有数据的情况，防止页面出错
-      paramObj.value = JSON.parse(JSON.stringify(paramObj.value)) //
+      // [修改] 3. 确保在没有数据时，paramObj 被重置为“空”状态
+      paramObj.value = JSON.parse(JSON.stringify(defaultParamObj))
     }
     // `paramObj` 的更新将由 watch 自动触发
   })
@@ -140,23 +145,32 @@ function getOptimalShifts() {
 function updateBestParamDisplay() {
   if (!selectedSoilType.value || !bestParamData.value[selectedSoilType.value]) {
     // 如果没有选中的土质或该土质没有数据，则清空图表
-    paramObj.value = {
-      shiftName: '',
-      parameters: {
-        // ... 重置为初始空状态 ...
-      }
-    }
+    // [修改] 4. 确保在没有数据时，paramObj 被重置为“空”状态
+    paramObj.value = JSON.parse(JSON.stringify(defaultParamObj))
     return
   }
 
   const dataForSoil = bestParamData.value[selectedSoilType.value]
 
+  // [修改] 5. 这里的逻辑是问题的核心
+  let newData = null
   if (dataType.value < 3) {
     // 最大产量
-    paramObj.value = dataForSoil.maxProductionShift || paramObj.value
+    newData = dataForSoil.maxProductionShift // 这可能是 null
   } else {
     // 最小能耗
-    paramObj.value = dataForSoil.minEnergyShift || paramObj.value
+    newData = dataForSoil.minEnergyShift // 这也可能是 null
+  }
+
+  if (newData) {
+    // 如果找到了新数据 (不是 null)，则赋值
+    paramObj.value = newData
+  } else {
+    // 【关键修复】
+    // 如果 newData 是 null (例如 "淤泥" 的 "maxProductionShift")
+    // 我们必须把 paramObj.value 重置为“空”状态，
+    // 而不是像之前那样 (null || paramObj.value) 保留旧值。
+    paramObj.value = JSON.parse(JSON.stringify(defaultParamObj))
   }
 }
 
@@ -207,6 +221,7 @@ const theoryOptimalData = ref([]) // 理论最优施工参数
  * @param {string} unit - The unit of the column (e.g., 'm/s')
  * @returns {string} - Base64 encoded image string
  */
+
 function generateReplayChartImage(data, name, unit) {
   const option = {
     animation: false,
@@ -306,7 +321,8 @@ async function downLoadReportFile() {
           : ''
         optimalParamImages.push({
           title: `${titleSoilPart}${type === 1 ? '最大产量' : '最小能耗'} (${shiftName})`,
-          src: chartImage
+          src: chartImage,
+          time: paramObj.value.optimalTime
         })
       }
     }
@@ -402,8 +418,8 @@ async function downLoadReport() {
       <div class="floor floor-1">
         <div class="statistics-table">
           <StatisticsTable
-            :table-data="shiftsStaticData"
             :ship-name="searchCondition.shipName"
+            :table-data="shiftsStaticData"
           ></StatisticsTable>
         </div>
         <div class="shifts-param">
@@ -411,8 +427,9 @@ async function downLoadReport() {
             ref="bestChart"
             :best-param="paramObj.parameters"
             :shift-name="paramObj.shiftName"
-            :time="time"
             :ship-name="searchCondition.shipName"
+            :optimal-time="paramObj.optimalTime"
+            :time="time"
           >
             <template v-if="searchCondition.shipName.includes('敏龙')" #title-right>
               <div class="soil-type-wrapper">

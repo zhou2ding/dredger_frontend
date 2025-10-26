@@ -153,7 +153,12 @@ const formatSoilTypes = (row, column, cellValue) => {
       <div class="title">最优班组施工参数</div>
       <div class="info">
         <div v-for="chart in exportInfo.optimalParamImages" :key="chart.title" class="chart-item">
-          <div class="sub-title">{{ chart.title }}</div>
+          <div class="sub-title">
+            {{ chart.title }}
+            <span v-if="chart.time" class="time-display">
+              ({{ dayjs(chart.time).format('YYYY-MM-DD HH:mm:ss') }})
+            </span>
+          </div>
           <img :src="chart.src" alt="" class="img" />
         </div>
       </div>
@@ -249,7 +254,6 @@ const formatSoilTypes = (row, column, cellValue) => {
   break-before: page; /* 打印时在此元素前强制分页 */
 }
 
-/* [新增] 样式 */
 .chart-item {
   margin-bottom: 20px;
   page-break-inside: avoid; /* 避免图表和标题被分页截断 */
@@ -260,5 +264,11 @@ const formatSoilTypes = (row, column, cellValue) => {
   font-weight: bold;
   padding: 8px 0;
   text-align: center;
+}
+.sub-title .time-display {
+  font-weight: normal;
+  font-size: 0.9em;
+  color: #333;
+  margin-left: 8px;
 }
 </style>
