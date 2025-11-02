@@ -31,22 +31,22 @@ const formatSoilTypes = (row, column, cellValue) => {
 <template>
   <div class="statistics-table-index">
     <Title title="班组统计表格"></Title>
-    <el-table :data="tableData" :border="true" stripe style="width: 100%" class="table">
-      <el-table-column width="80" label="班组" prop="shiftName"></el-table-column>
-      <el-table-column sortable label="施工时长(min)" prop="workDuration"></el-table-column>
-      <el-table-column sortable label="班组总产量(m³)" prop="totalProduction"></el-table-column>
+    <el-table :border="true" :data="tableData" class="table" stripe style="width: 100%">
+      <el-table-column label="班组" prop="shiftName" width="80"></el-table-column>
+      <el-table-column label="施工时长(min)" prop="workDuration" sortable></el-table-column>
+      <el-table-column label="班组总产量(m³)" prop="totalProduction" sortable></el-table-column>
       <el-table-column
-        width="210"
-        sortable
         label="单方能耗(kw·h/m³)"
         prop="totalEnergy"
+        sortable
+        width="210"
       ></el-table-column>
       <el-table-column
         v-if="shipName.includes('敏龙')"
-        width="140"
+        :formatter="formatSoilTypes"
         label="土质"
         prop="soilTypes"
-        :formatter="formatSoilTypes"
+        width="140"
       ></el-table-column>
     </el-table>
   </div>

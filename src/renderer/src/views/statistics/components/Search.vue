@@ -121,6 +121,10 @@ function exportFile() {
 }
 
 const effectiveDateList = ref([])
+function handleShipChange() {
+  // 每次切换船名时重新加载有效日期
+  panelChange(time.value)
+}
 
 /**
  * 切换月份
@@ -171,7 +175,7 @@ function setName(val) {
     </div>
     <div class="search-item shift-name">
       <div class="name">船名</div>
-      <el-select v-model="shipName">
+      <el-select v-model="shipName" @change="handleShipChange">
         <el-option v-for="item in shipList" :key="item.shipName" :value="item.shipName">
           {{ item.shipName + ' ' + item.startDate + '—' + item.endDate }}
         </el-option>
@@ -213,8 +217,8 @@ function setName(val) {
     </div>
   </div>
   <AddDataDialog
-    v-model="addDialogVisible"
     v-if="addDialogVisible"
+    v-model="addDialogVisible"
     @add-data="updateData"
   ></AddDataDialog>
   <TheoreticalParamsDialog
