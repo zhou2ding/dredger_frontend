@@ -1,6 +1,6 @@
 <script setup>
 import Title from '../../components/Title.vue'
-import { ref, reactive, onMounted, watch, computed } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import * as echarts from 'echarts'
 import { ElMessage } from 'element-plus'
 import 'element-plus/dist/index.css'
@@ -206,7 +206,7 @@ const currentTimeDisplay = computed(() => {
       </div>
     </div>
 
-    <div class="content" v-loading="isLoading">
+    <div v-loading="isLoading" class="content">
       <div class="primary-data-cards">
         <div v-for="key in primaryDataKeys" :key="key" class="data-card primary">
           <div class="card-title">{{ displayNames[key] }}</div>
@@ -248,11 +248,11 @@ const currentTimeDisplay = computed(() => {
       <div class="current-time">当前时间: {{ currentTimeDisplay }}</div>
       <el-slider
         v-model="sliderValue"
-        :min="0"
-        :max="timestamps.length > 0 ? timestamps.length - 1 : 0"
-        :step="1"
-        :format-tooltip="sliderTooltipFormat"
         :disabled="isLoading || timestamps.length === 0"
+        :format-tooltip="sliderTooltipFormat"
+        :max="timestamps.length > 0 ? timestamps.length - 1 : 0"
+        :min="0"
+        :step="1"
         style="width: 90%; margin: 0 auto"
       />
     </div>
