@@ -68,26 +68,68 @@ const comparisonTable = computed(() => {
     })
   })
 
-  const paramKeys = {
-    flow: '流量 (m³/h)',
-    concentration: '浓度 (%)',
-    sPumpRpm: '水下泵转速 (rpm)',
-    cutterDepth: '绞刀深度 (m)',
-    carriageTravel: '台车行程 (m)',
-    horizontalSpeed: '横移速度 (m/min)',
-    boosterPumpDischargePressure: '升压泵排出压力 (bar)',
-    vacuumDegree: '真空度 (kPa)'
-  }
+  const isHuaAnLong = computed(() => exportInfo.value.shiftName.includes('华安龙'))
+  const paramKeys = computed(() => {
+    return isHuaAnLong.value
+      ? {
+          flow: '流量 (m³/h)',
+          concentration: '浓度 (%)',
+          sPumpRpm: '水下泵转速 (rpm)',
+          cutterDepth: '绞刀深度 (m)',
+          horizontalSpeed: '横移速度 (m/min)',
+          mudPump2DischargePressure: '2#泥泵排出压力 (bar)',
+          boosterPumpDischargePressure: '水下泵排出压力 (bar)',
+          vacuumDegree: '真空度 (kPa)'
+        }
+      : {
+          flow: '流量 (m³/h)',
+          concentration: '浓度 (%)',
+          sPumpRpm: '水下泵转速 (rpm)',
+          cutterDepth: '绞刀深度 (m)',
+          carriageTravel: '台车行程 (m)',
+          horizontalSpeed: '横移速度 (m/min)',
+          boosterPumpDischargePressure: '升压泵排出压力 (bar)',
+          vacuumDegree: '真空度 (kPa)'
+        }
+  })
 
-  const rows = Object.keys(paramKeys).map((key) => {
-    const [name, unit] = paramKeys[key].split(' (')
+  const rows = Object.keys(paramKeys.value).map((key) => {
+    const [name, unit] = paramKeys.value[key].split(' (')
+
+    // ====================== 修复点 1：理论值映射 ======================
+    let theoryValue = data.theory ? data.theory[key] : 'N/A'
+
+    // 特殊逻辑：如果是华安龙，且当前行是“2#泥泵排出压力”
+    // 因为数据库限制，理论值实际存储在 carriageTravel (台车行程) 字段中
+    if (isHuaAnLong.value && key === 'mudPump2DischargePressure') {
+      theoryValue = data.theory ? data.theory['carriageTravel'] : 'N/A'
+    }
+    // ==============================================================
+
     const rowData = {
       paramName: name,
       unit: unit ? `(${unit}` : '',
-      theoretical: data.theory ? data.theory[key] : 'N/A'
+      theoretical: theoryValue
     }
+
     data.shifts.forEach((shift) => {
-      rowData[shift.shiftName] = shift.parameters[key]?.average ?? 'N/A'
+      // ====================== 修复点 2：实际值映射 ======================
+      let val = shift.parameters[key]?.average
+
+      // 特殊逻辑：如果是华安龙，且“2#泥泵排出压力”读不到值(或为0)
+      // 尝试去读 carriageTravel，防止后端在汇总数据中也复用了该字段
+      if (isHuaAnLong.value && key === 'mudPump2DischargePressure') {
+        if (val === undefined || val === 0 || val === null) {
+          // 如果原本的key没值，尝试取台车行程的值作为备选
+          const fallbackVal = shift.parameters['carriageTravel']?.average
+          if (fallbackVal !== undefined && fallbackVal !== null) {
+            val = fallbackVal
+          }
+        }
+      }
+      // ==============================================================
+
+      rowData[shift.shiftName] = val ?? 'N/A'
     })
     return rowData
   })

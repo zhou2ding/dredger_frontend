@@ -74,7 +74,8 @@ const defaultParamObj = {
       variance: 0,
       maxProductionParam: 0
     },
-    vacuumDegree: { min: 0, max: 10, average: 0, variance: 0, maxProductionParam: 0 }
+    vacuumDegree: { min: 0, max: 10, average: 0, variance: 0, maxProductionParam: 0 },
+    mudPump2DischargePressure: { min: 0, max: 10, average: 0, variance: 0, maxProductionParam: 0 }
   }
 }
 

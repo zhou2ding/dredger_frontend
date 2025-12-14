@@ -1,7 +1,7 @@
 <script setup>
 import Title from '../../../components/Title.vue'
 import * as echarts from 'echarts'
-import { ref, onMounted, watch } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import searchApi from '../../../api/search/index'
 import { useResizeObserver } from '@vueuse/core'
 
@@ -98,8 +98,11 @@ watch(
   () => time,
   () => {
     if (columnList.length > 0) {
-      column.value = columnList[0].columnName
-      changeColumn(columnList[0].columnName)
+      const defaultColumn =
+        columnList.find((item) => item.columnName === 'flow_velocity')?.columnName ||
+        columnList[0].columnName
+      column.value = defaultColumn
+      changeColumn(defaultColumn)
     }
   }
 )
@@ -140,8 +143,8 @@ function changeColumn(column) {
         <el-option
           v-for="item in columnList"
           :key="item.columnName"
-          :value="item.columnName"
           :label="item.columnChineseName"
+          :value="item.columnName"
         ></el-option>
       </el-select>
     </div>

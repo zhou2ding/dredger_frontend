@@ -2,10 +2,11 @@
 import Title from '../../../components/Title.vue'
 import { computed, onMounted, ref, watch } from 'vue'
 import * as echarts from 'echarts'
-import { useResizeObserver } from '@vueuse/core' // 增加了 shipName prop
-import { dayjs } from 'element-plus'
-// 增加了 shipName prop
-const { bestParam, shiftName, shipName, optimalTime } = defineProps({
+import { useResizeObserver } from '@vueuse/core'
+import dayjs from 'dayjs'
+import { InfoFilled } from '@element-plus/icons-vue'
+
+const props = defineProps({
   shiftName: {
     type: String,
     default: ''
@@ -16,67 +17,7 @@ const { bestParam, shiftName, shipName, optimalTime } = defineProps({
   },
   bestParam: {
     type: Object,
-    default: () => {
-      return {
-        horizontalSpeed: {
-          min: 0,
-          max: 10,
-          average: 0,
-          variance: 0,
-          maxProductionParam: 0,
-          warning: ''
-        },
-        carriageTravel: {
-          min: 0,
-          max: 10,
-          average: 0,
-          variance: 0,
-          maxProductionParam: 0
-        },
-        cutterDepth: {
-          min: 0,
-          max: 10,
-          average: 0,
-          variance: 0,
-          maxProductionParam: 0
-        },
-        sPumpRpm: {
-          min: 0,
-          max: 10,
-          average: 0,
-          variance: 0,
-          maxProductionParam: 0
-        },
-        concentration: {
-          min: 0,
-          max: 10,
-          average: 0,
-          variance: 0,
-          maxProductionParam: 0
-        },
-        flow: {
-          min: 0,
-          max: 10,
-          average: 0,
-          variance: 0,
-          maxProductionParam: 0
-        },
-        boosterPumpDischargePressure: {
-          min: 0,
-          max: 10,
-          average: 0,
-          variance: 0,
-          maxProductionParam: 0
-        },
-        vacuumDegree: {
-          min: 0,
-          max: 10,
-          average: 0,
-          variance: 0,
-          maxProductionParam: 0
-        }
-      }
-    }
+    default: () => ({}) // 简化默认值，依靠内部防御逻辑
   },
   shipName: {
     type: String,
@@ -84,31 +25,49 @@ const { bestParam, shiftName, shipName, optimalTime } = defineProps({
   }
 })
 
-const CONST = {
-  flow: '流量(m³/h）',
-  concentration: '浓度(%)',
-  sPumpRpm: '水下泵转速(rpm)',
-  cutterDepth: '绞刀深度(m)',
-  carriageTravel: '台车行程(m)',
-  horizontalSpeed: '横移速度(m/min)',
-  boosterPumpDischargePressure: '升压泵排出压力(bar)',
-  vacuumDegree: '真空度(kPa)'
-}
+const isHuaAnLong = computed(() => props.shipName.includes('华安龙'))
+
+const CONST = computed(() => {
+  if (isHuaAnLong.value) {
+    return {
+      flow: '流量(m³/h)',
+      concentration: '浓度(%)',
+      sPumpRpm: '水下泵转速(rpm)',
+      cutterDepth: '绞刀深度(m)',
+      horizontalSpeed: '横移速度(m/min)',
+      mudPump2DischargePressure: '2#泥泵排出压力(bar)',
+      boosterPumpDischargePressure: '水下泵排出压力(bar)',
+      vacuumDegree: '真空度(kPa)'
+    }
+  }
+
+  return {
+    flow: '流量(m³/h)',
+    concentration: '浓度(%)',
+    sPumpRpm: '水下泵转速(rpm)',
+    cutterDepth: '绞刀深度(m)',
+    carriageTravel: '台车行程(m)',
+    horizontalSpeed: '横移速度(m/min)',
+    boosterPumpDischargePressure: '升压泵排出压力(bar)',
+    vacuumDegree: '真空度(kPa)'
+  }
+})
 
 const formattedOptimalTime = computed(() => {
-  if (!optimalTime) {
+  if (!props.optimalTime) {
     return ''
   }
-  return dayjs(optimalTime).format('YYYY-MM-DD HH:mm:ss')
+  return dayjs(props.optimalTime).format('YYYY-MM-DD HH:mm:ss')
 })
 
 const chartDom = ref(null)
 
 function setOption() {
-  const paramKeys = Object.keys(CONST)
+  const paramKeys = Object.keys(CONST.value)
   const totalParams = paramKeys.length
 
-  const chartAreaTop = -5
+  // 【修正 1】将 Top 改为正数，避免布局计算异常
+  const chartAreaTop = 5
   const chartAreaBottom = 80
   const availableHeight = chartAreaBottom - chartAreaTop
 
@@ -138,15 +97,25 @@ function setOption() {
       height: '10%'
     })
 
+    // 【修正 2：核心修复】增加防御性判断
+    // 如果 props.bestParam 中没有 key 对应的数据，使用默认全0数据防止崩溃
+    const rawData = props.bestParam && props.bestParam[key]
+    const paramData = rawData || {
+      min: 0,
+      max: 10,
+      average: 0,
+      variance: 0
+    }
+
     option.xAxis.push({
       gridIndex: index,
-      min: bestParam[key].min,
-      max: bestParam[key].max,
+      min: paramData.min,
+      max: paramData.max,
       splitNumber: 10,
       axisTick: { length: 6, lineStyle: { width: 2 } },
       axisLine: { lineStyle: { width: 2 } },
       splitLine: { show: false },
-      name: CONST[key],
+      name: CONST.value[key],
       nameLocation: 'start'
     })
 
@@ -159,11 +128,11 @@ function setOption() {
     })
 
     option.series.push({
-      name: CONST[key],
+      name: CONST.value[key],
       type: 'scatter',
       xAxisIndex: index,
       yAxisIndex: index,
-      data: [[bestParam[key].average, 0]],
+      data: [[paramData.average, 0]],
       markLine: {
         silent: true,
         symbol: '',
@@ -183,7 +152,7 @@ function setOption() {
         },
         data: [
           {
-            name: Number(bestParam[key].variance.toFixed(3)),
+            name: Number((paramData.variance || 0).toFixed(3)), // 防止 variance 为 undefined
             yAxis: 0
           }
         ]
@@ -197,18 +166,31 @@ function setOption() {
 let mychart
 onMounted(() => {
   mychart = echarts.init(chartDom.value)
-  mychart.setOption(setOption())
+  // 初始化时也需要判断数据是否存在
+  if (props.bestParam) {
+    mychart.setOption(setOption())
+  }
 })
 
 function resetChart() {
-  mychart.resize()
+  if (mychart) {
+    mychart.resize()
+  }
 }
 
 useResizeObserver(chartDom, resetChart)
+
 watch(
-  () => bestParam,
+  () => props.bestParam,
   () => {
-    mychart.setOption(setOption())
+    if (mychart) {
+      // 加上 try-catch 防止数据异常导致整个页面卡死
+      try {
+        mychart.setOption(setOption(), true) // 第二个参数 true 表示不合并，重绘，防止旧数据残留
+      } catch (e) {
+        console.error('图表渲染失败', e)
+      }
+    }
   },
   { deep: true }
 )
@@ -231,13 +213,22 @@ defineExpose({
 <template>
   <div class="best-construction">
     <div class="title-container">
-      <Title title="最优班组施工参数"></Title>
-      <slot v-if="shipName.includes('敏龙')" name="title-right"></slot>
+      <div class="title-with-tip">
+        <Title title="最优班组施工参数" />
+        <el-tooltip content="右侧蓝色数值表示方差" effect="dark" placement="right">
+          <el-icon class="tip-icon">
+            <InfoFilled />
+          </el-icon>
+        </el-tooltip>
+      </div>
+      <slot v-if="props.shipName.includes('敏龙')" name="title-right"></slot>
     </div>
-    <div v-if="shiftName" class="chart-title">
-      {{ shiftName }}
+
+    <div v-if="props.shiftName" class="chart-title">
+      {{ props.shiftName }}
       <span v-if="formattedOptimalTime" class="time-display"> ({{ formattedOptimalTime }}) </span>
     </div>
+
     <div ref="chartDom" class="chart"></div>
   </div>
 </template>
@@ -272,8 +263,23 @@ defineExpose({
 }
 .time-display {
   font-weight: normal;
-  font-size: 0.9em; /* 比班组名称稍小一点 */
+  font-size: 0.9em;
   color: #666;
-  margin-left: 8px; /* 和班组名称拉开一点距离 */
+  margin-left: 8px;
+}
+.title-with-tip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tip-icon {
+  font-size: 16px;
+  color: #999;
+  cursor: pointer;
+}
+
+.tip-icon:hover {
+  color: #409eff;
 }
 </style>

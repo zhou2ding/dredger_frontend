@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import searchApi from '../../../api/search/index'
 
@@ -10,6 +10,7 @@ const props = defineProps({
     default: false
   }
 })
+const isHuaAnLong = computed(() => formData.value.shipName.includes('华安龙'))
 
 const emit = defineEmits(['update:modelValue', 'save'])
 
@@ -105,16 +106,16 @@ const handleConfirm = async () => {
     @close="handleClose"
   >
     <el-form ref="formRef" :model="formData" label-width="180px">
-      <el-form-item label="船名" prop="shipName" :rules="{ required: true, message: '请选择船名' }">
+      <el-form-item :rules="{ required: true, message: '请选择船名' }" label="船名" prop="shipName">
         <el-select v-model="formData.shipName" placeholder="请选择船名" style="width: 100%">
           <el-option v-for="ship in shipList" :key="ship" :label="ship" :value="ship" />
         </el-select>
       </el-form-item>
 
       <el-form-item
+        :rules="{ required: true, message: '请输入流量' }"
         label="流量(m³/h)"
         prop="flow"
-        :rules="{ required: true, message: '请输入流量' }"
       >
         <el-input-number
           v-model="formData.flow"
@@ -124,9 +125,9 @@ const handleConfirm = async () => {
         />
       </el-form-item>
       <el-form-item
+        :rules="{ required: true, message: '请输入浓度' }"
         label="浓度(%)"
         prop="concentration"
-        :rules="{ required: true, message: '请输入浓度' }"
       >
         <el-input-number
           v-model="formData.concentration"
@@ -136,9 +137,9 @@ const handleConfirm = async () => {
         />
       </el-form-item>
       <el-form-item
+        :rules="{ required: true, message: '请输入水下泵转速' }"
         label="水下泵转速(rpm)"
         prop="sPumpRpm"
-        :rules="{ required: true, message: '请输入水下泵转速' }"
       >
         <el-input-number
           v-model="formData.sPumpRpm"
@@ -148,9 +149,9 @@ const handleConfirm = async () => {
         />
       </el-form-item>
       <el-form-item
+        :rules="{ required: true, message: '请输入绞刀深度' }"
         label="绞刀深度(m)"
         prop="cutterDepth"
-        :rules="{ required: true, message: '请输入绞刀深度' }"
       >
         <el-input-number
           v-model="formData.cutterDepth"
@@ -160,21 +161,9 @@ const handleConfirm = async () => {
         />
       </el-form-item>
       <el-form-item
-        label="台车行程(m)"
-        prop="carriageTravel"
-        :rules="{ required: true, message: '请输入台车行程' }"
-      >
-        <el-input-number
-          v-model="formData.carriageTravel"
-          :min="0"
-          controls-position="right"
-          style="width: 100%"
-        />
-      </el-form-item>
-      <el-form-item
+        :rules="{ required: true, message: '请输入横移速度' }"
         label="横移速度(m/min)"
         prop="horizontalSpeed"
-        :rules="{ required: true, message: '请输入横移速度' }"
       >
         <el-input-number
           v-model="formData.horizontalSpeed"
@@ -184,9 +173,27 @@ const handleConfirm = async () => {
         />
       </el-form-item>
       <el-form-item
-        label="升压泵排出压力(bar)"
+        :label="isHuaAnLong ? '2#泥泵排出压力(bar)' : '台车行程(m)'"
+        :rules="{
+          required: true,
+          message: isHuaAnLong ? '请输入2#泥泵排出压力' : '请输入台车行程'
+        }"
+        prop="carriageTravel"
+      >
+        <el-input-number
+          v-model="formData.carriageTravel"
+          :min="0"
+          controls-position="right"
+          style="width: 100%"
+        />
+      </el-form-item>
+      <el-form-item
+        :label="isHuaAnLong ? '水下泵排出压力(bar)' : '升压泵排出压力(bar)'"
+        :rules="{
+          required: true,
+          message: isHuaAnLong ? '请输入水下泵排出压力' : '请输入升压泵排出压力'
+        }"
         prop="boosterPumpDischargePressure"
-        :rules="{ required: true, message: '请输入升压泵排出压力' }"
       >
         <el-input-number
           v-model="formData.boosterPumpDischargePressure"
@@ -196,9 +203,9 @@ const handleConfirm = async () => {
         />
       </el-form-item>
       <el-form-item
+        :rules="{ required: true, message: '请输入真空度' }"
         label="真空度(kPa)"
         prop="vacuumDegree"
-        :rules="{ required: true, message: '请输入真空度' }"
       >
         <el-input-number
           v-model="formData.vacuumDegree"
